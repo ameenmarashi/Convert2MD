@@ -63,8 +63,9 @@
         "application/rtf": [".rtf"],
         "text/html": [".html", ".htm"],
         "text/csv": [".csv", ".tsv"],
-        "text/plain": [".txt", ".md", ".json", ".yaml", ".yml", ".srt", ".vtt"],
-        "message/rfc822": [".eml"]
+        "text/plain": [".txt", ".json", ".yaml", ".yml", ".srt", ".vtt"],
+        "message/rfc822": [".eml"],
+        "text/markdown": [".md", ".markdown", ".mdown", ".mkd", ".mdx"]
       },
       "launch_type": "single-client"
     }
