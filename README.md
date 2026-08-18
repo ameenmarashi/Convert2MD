@@ -1,7 +1,8 @@
 # MD Converter
 
-Convert documents to Markdown entirely on your own device — no server, no
-uploads, no account. Two apps from one design:
+Convert documents to Markdown — and read the Markdown you already have —
+entirely on your own device, with no server, no uploads and no account. Two apps
+from one design:
 
 - **`web/`** — an installable PWA that works fully offline once added to the
   Home Screen or Dock.
@@ -28,6 +29,37 @@ uploads, no account. Two apps from one design:
 
 Legacy binary `.doc`/`.xls`/`.ppt` are detected and answered with the one-line
 fix (re-save as the modern format) rather than a generic failure.
+
+## Reading Markdown
+
+A `.md` file is already the finished document, so there is nothing to convert.
+**Open a .md file** puts it in a reading view instead: one comfortable measure,
+a contents list built from the headings, adjustable text size, a source toggle,
+and a print stylesheet so "Save as PDF" produces something worth sending on.
+It is the answer to the pile of `.md` files that AI tools hand back.
+
+Markdown that arrives any other way — dropped on the window, picked from the
+file dialog, or handed over by the operating system — goes to the reader too;
+everything else goes to the converter.
+
+## Open with
+
+Both apps register as document handlers, so a file can go straight into the app
+from wherever it lives:
+
+| Platform | Route |
+| --- | --- |
+| iOS, iPadOS | Files, Mail, Drive → Share → **MD Converter**, or tap a `.md` and pick it under "Open in" |
+| macOS | Finder → right-click → **Open With**, or drop the file on the Dock icon |
+| Android | Files or any file manager → **Open with**, plus the system share sheet |
+| Chrome, Edge, Chrome OS | Registered through the manifest's `file_handlers` once the PWA is installed |
+
+Markdown has no system-assigned type identifier on Apple platforms, so the app
+declares one (`net.daringfireball.markdown`) and claims the extensions — that
+declaration is what puts it in Finder's and Files' "Open with" list.
+
+For the native apps this wiring lives in `flutter_app/platform/` and is
+installed by `flutter_app/tool/configure_platforms.sh` after `flutter create`.
 
 ## Live site
 
@@ -91,7 +123,8 @@ CDN, which is what makes true offline operation possible:
 
 Conversion runs in a Web Worker; results can be copied, downloaded, or exported
 together as a `.zip` built in the browser. Drag and drop, the file picker, the
-clipboard, the Web Share Target and OS file handlers all feed the same pipeline.
+clipboard, the Web Share Target and OS file handlers all feed the same pipeline —
+which routes Markdown to the reading view and everything else to the converter.
 
 ## The Flutter app
 
@@ -118,11 +151,19 @@ the monogram, the gradient, the accent and the launch-screen backgrounds.
 npm --prefix web run icons     # regenerates every icon, splash and launch image
 ```
 
-That one command writes the PWA icons, favicon, Apple touch icon and 16 iOS
-launch images into `web/public/icons/`, and the 1024px icon, Android adaptive
+That one command writes the PWA icons, favicon, Apple touch icon and 76 iOS
+launch images into `web/public/icons/`, rewrites the `apple-touch-startup-image`
+block in `index.html` to match, and writes the 1024px icon, Android adaptive
 layers and splash logo into `flutter_app/assets/branding/`. The monogram is drawn
 as geometry rather than set in a typeface, so it renders identically everywhere
 with no font dependency.
+
+iOS picks a launch image by an exact media query on the device's CSS size,
+pixel ratio and orientation, and shows a blank white screen when nothing
+matches — so the generator covers 19 device sizes in both orientations and both
+colour schemes, driven from one table in `web/scripts/make-icons.mjs`. Each
+image is a flat field with the monogram on it, encoded as an indexed PNG, which
+keeps all 76 to about 400 KB and out of the offline precache.
 
 For the native apps, after `flutter create` has generated the platform folders:
 

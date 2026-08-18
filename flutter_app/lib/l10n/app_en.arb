@@ -106,5 +106,31 @@
   "aboutOfflineBody": "Every parser is built into the app. It keeps working on a plane, in a basement, with the network off.",
   "aboutFormatsTitle": "What you can convert",
   "aboutFormats": "PDF · Word · Excel · PowerPoint · Google Docs, Sheets & Slides exports · OpenDocument · EPUB · RTF · HTML · Email · CSV · Text · Subtitles · Source code · Images",
-  "learnMore": "The longer version"
+  "learnMore": "The longer version",
+  "openMarkdown": "Open a .md file",
+  "openMarkdownHint": "Already have Markdown — from an AI tool or anywhere else? Open it and read it as a formatted document.",
+  "readerContents": "Contents",
+  "readerSmaller": "Smaller text",
+  "readerLarger": "Larger text",
+  "readerSource": "Markdown source",
+  "readerFormatted": "Formatted view",
+  "readerMeta": "{words} words · about {minutes} min",
+  "@readerMeta": {
+    "placeholders": {
+      "words": {
+        "type": "int"
+      },
+      "minutes": {
+        "type": "int"
+      }
+    }
+  },
+  "linkCopied": "Link copied: {href}",
+  "@linkCopied": {
+    "placeholders": {
+      "href": {
+        "type": "String"
+      }
+    }
+  }
 }

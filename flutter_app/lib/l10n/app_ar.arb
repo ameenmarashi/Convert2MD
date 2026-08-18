@@ -106,5 +106,31 @@
   "aboutOfflineBody": "كل محلّلات الملفات مدمجة في التطبيق، فيظل يعمل في الطائرة وفي القبو ومع إيقاف الشبكة.",
   "aboutFormatsTitle": "ما يمكن تحويله",
   "aboutFormats": "PDF · وورد · إكسل · باوربوينت · ملفات جوجل المصدَّرة · OpenDocument · EPUB · RTF · HTML · بريد · CSV · نصوص · ترجمات · شيفرة برمجية · صور",
-  "learnMore": "النسخة المطوّلة"
+  "learnMore": "النسخة المطوّلة",
+  "openMarkdown": "فتح ملف ‎.md",
+  "openMarkdownHint": "لديك ملف ماركداون من أداة ذكاء اصطناعي أو من أي مصدر آخر؟ افتحه واقرأه كمستند منسَّق.",
+  "readerContents": "المحتويات",
+  "readerSmaller": "تصغير النص",
+  "readerLarger": "تكبير النص",
+  "readerSource": "نص ماركداون",
+  "readerFormatted": "العرض المنسَّق",
+  "readerMeta": "{words} كلمة · نحو {minutes} دقيقة",
+  "@readerMeta": {
+    "placeholders": {
+      "words": {
+        "type": "int"
+      },
+      "minutes": {
+        "type": "int"
+      }
+    }
+  },
+  "linkCopied": "تم نسخ الرابط: {href}",
+  "@linkCopied": {
+    "placeholders": {
+      "href": {
+        "type": "String"
+      }
+    }
+  }
 }

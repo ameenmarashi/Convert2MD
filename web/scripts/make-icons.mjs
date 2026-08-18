@@ -242,37 +242,44 @@ function render(size, sampler, { maskable = false, scale = 1, background = null 
   return { pixels, width: size, height: size };
 }
 
-/** A launch image: flat background with the monogram centred. */
+/**
+ * A launch image: flat background with the monogram centred.
+ *
+ * Every pixel is the background mixed with the accent by one alpha value, so
+ * the whole image fits a small palette. Emitting it as an indexed PNG rather
+ * than RGBA cuts the raw bytes to a quarter before deflate even starts — which
+ * is what keeps covering every iOS device size at both orientations from
+ * costing megabytes.
+ */
+const LAUNCH_LEVELS = 64;
+
 function renderLaunch(width, height, background) {
-  const pixels = Buffer.alloc(width * height * 4);
   const bg = hexToRgb(background);
+  const palette = [];
+  for (let level = 0; level <= LAUNCH_LEVELS; level++) {
+    const t = level / LAUNCH_LEVELS;
+    palette.push([
+      Math.round(bg[0] + (ACCENT[0] - bg[0]) * t),
+      Math.round(bg[1] + (ACCENT[1] - bg[1]) * t),
+      Math.round(bg[2] + (ACCENT[2] - bg[2]) * t),
+    ]);
+  }
+
+  // Index 0 is the background, so the field needs no writing at all.
+  const indices = Buffer.alloc(width * height);
   const logoSize = Math.round(Math.min(width, height) * 0.28);
   const originX = Math.round((width - logoSize) / 2);
   const originY = Math.round((height - logoSize) / 2);
   const logo = render(logoSize, sampleLogo, { scale: 0.92 });
 
-  for (let y = 0; y < height; y++) {
-    for (let x = 0; x < width; x++) {
-      const index = (y * width + x) * 4;
-      pixels[index] = bg[0];
-      pixels[index + 1] = bg[1];
-      pixels[index + 2] = bg[2];
-      pixels[index + 3] = 255;
-    }
-  }
-
   for (let y = 0; y < logoSize; y++) {
     for (let x = 0; x < logoSize; x++) {
-      const src = (y * logoSize + x) * 4;
-      const alpha = logo.pixels[src + 3] / 255;
+      const alpha = logo.pixels[(y * logoSize + x) * 4 + 3];
       if (alpha === 0) continue;
-      const dst = ((originY + y) * width + (originX + x)) * 4;
-      for (let c = 0; c < 3; c++) {
-        pixels[dst + c] = Math.round(bg[c] * (1 - alpha) + logo.pixels[src + c] * alpha);
-      }
+      indices[(originY + y) * width + (originX + x)] = Math.round((alpha / 255) * LAUNCH_LEVELS);
     }
   }
-  return { pixels, width, height };
+  return { indices, palette, width, height };
 }
 
 /* -------------------------------------------------------------------- PNG */
@@ -302,12 +309,62 @@ function chunk(type, data) {
   return Buffer.concat([length, body, crc]);
 }
 
+/**
+ * Picks a row filter per scanline by the usual minimum-sum-of-absolute-
+ * differences heuristic. Launch images are a flat field with a small logo, and
+ * a filtered flat row deflates to almost nothing — it takes them from ~25 KB
+ * each to a couple, which is what makes covering every iOS device size viable.
+ */
+function filterRow(row, prior, bpp, out) {
+  const length = row.length;
+  const candidates = [];
+
+  for (let type = 0; type < 5; type++) {
+    const line = Buffer.alloc(length);
+    let score = 0;
+    for (let i = 0; i < length; i++) {
+      const raw = row[i];
+      const left = i >= bpp ? row[i - bpp] : 0;
+      const up = prior[i];
+      const upLeft = i >= bpp ? prior[i - bpp] : 0;
+      let value;
+      switch (type) {
+        case 0: value = raw; break;
+        case 1: value = raw - left; break;
+        case 2: value = raw - up; break;
+        case 3: value = raw - ((left + up) >> 1); break;
+        default: value = raw - paeth(left, up, upLeft); break;
+      }
+      const byte = value & 0xff;
+      line[i] = byte;
+      // Signed magnitude: bytes near 0 or 255 are both cheap to deflate.
+      score += byte < 128 ? byte : 256 - byte;
+    }
+    candidates.push({ type, line, score });
+  }
+
+  const best = candidates.reduce((a, b) => (b.score < a.score ? b : a));
+  out[0] = best.type;
+  best.line.copy(out, 1);
+}
+
+function paeth(a, b, c) {
+  const p = a + b - c;
+  const pa = Math.abs(p - a);
+  const pb = Math.abs(p - b);
+  const pc = Math.abs(p - c);
+  if (pa <= pb && pa <= pc) return a;
+  return pb <= pc ? b : c;
+}
+
 function encodePng({ pixels, width, height }) {
   const stride = width * 4;
   const raw = Buffer.alloc(height * (stride + 1));
+  let prior = Buffer.alloc(stride);
   for (let y = 0; y < height; y++) {
-    raw[y * (stride + 1)] = 0;
-    pixels.copy(raw, y * (stride + 1) + 1, y * stride, (y + 1) * stride);
+    const row = pixels.subarray(y * stride, (y + 1) * stride);
+    filterRow(row, prior, 4, raw.subarray(y * (stride + 1), (y + 1) * (stride + 1)));
+    prior = row;
   }
 
   const ihdr = Buffer.alloc(13);
@@ -324,6 +381,36 @@ function encodePng({ pixels, width, height }) {
   ]);
 }
 
+/** Indexed PNG (colour type 3). The spec advises no filtering for these. */
+function encodeIndexedPng({ indices, palette, width, height }) {
+  const raw = Buffer.alloc(height * (width + 1));
+  for (let y = 0; y < height; y++) {
+    raw[y * (width + 1)] = 0;
+    indices.copy(raw, y * (width + 1) + 1, y * width, (y + 1) * width);
+  }
+
+  const ihdr = Buffer.alloc(13);
+  ihdr.writeUInt32BE(width, 0);
+  ihdr.writeUInt32BE(height, 4);
+  ihdr[8] = 8;
+  ihdr[9] = 3;
+
+  const plte = Buffer.alloc(palette.length * 3);
+  for (const [index, [r, g, b]] of palette.entries()) {
+    plte[index * 3] = r;
+    plte[index * 3 + 1] = g;
+    plte[index * 3 + 2] = b;
+  }
+
+  return Buffer.concat([
+    Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]),
+    chunk('IHDR', ihdr),
+    chunk('PLTE', plte),
+    chunk('IDAT', deflateSync(raw, { level: 9 })),
+    chunk('IEND', Buffer.alloc(0)),
+  ]);
+}
+
 /* ------------------------------------------------------------------- main */
 
 mkdirSync(iconsDir, { recursive: true });
@@ -331,7 +418,7 @@ mkdirSync(flutterAssets, { recursive: true });
 
 let bytesWritten = 0;
 function emit(path, image) {
-  const png = encodePng(image);
+  const png = image.indices ? encodeIndexedPng(image) : encodePng(image);
   writeFileSync(path, png);
   bytesWritten += png.length;
   return png.length;
@@ -373,21 +460,100 @@ console.log(
 
 // iOS launch images for the installed PWA. Android generates its own splash
 // from the manifest, so both platforms land on the same mark and background.
-const LAUNCH_SIZES = [
-  [1290, 2796], [1179, 2556], [1170, 2532], [1125, 2436],
-  [828, 1792], [750, 1334], [1536, 2048], [2048, 2732],
+//
+// iOS matches one `apple-touch-startup-image` by an exact media query on the
+// device's CSS size and pixel ratio, and shows a blank white screen when
+// nothing matches. Both orientations need an entry — device-width and
+// device-height swap when the device is held sideways, which is why an iPad in
+// landscape used to get nothing — and every current device size needs a row,
+// so a missing model does not fall back to white.
+const DEVICES = [
+  // iPhone                                    css w   css h  dpr
+  { name: 'iPhone SE (1st gen)',               w: 320, h: 568, dpr: 2 },
+  { name: 'iPhone SE, 6/7/8',                  w: 375, h: 667, dpr: 2 },
+  { name: 'iPhone 6/7/8 Plus',                 w: 414, h: 736, dpr: 3 },
+  { name: 'iPhone X, XS, 11 Pro, 12/13 mini',  w: 375, h: 812, dpr: 3 },
+  { name: 'iPhone XR, 11',                     w: 414, h: 896, dpr: 2 },
+  { name: 'iPhone XS Max, 11 Pro Max',         w: 414, h: 896, dpr: 3 },
+  { name: 'iPhone 12/13/14',                   w: 390, h: 844, dpr: 3 },
+  { name: 'iPhone 14 Pro, 15, 16',             w: 393, h: 852, dpr: 3 },
+  { name: 'iPhone 16 Pro',                     w: 402, h: 874, dpr: 3 },
+  { name: 'iPhone 12/13/14 Plus, 14 Pro Max',  w: 428, h: 926, dpr: 3 },
+  { name: 'iPhone 15/16 Plus, 15 Pro Max',     w: 430, h: 932, dpr: 3 },
+  { name: 'iPhone 16 Pro Max',                 w: 440, h: 956, dpr: 3 },
+  // iPad
+  { name: 'iPad mini 6',                       w: 744, h: 1133, dpr: 2 },
+  { name: 'iPad 9.7", mini, Air',              w: 768, h: 1024, dpr: 2 },
+  { name: 'iPad 10.2"',                        w: 810, h: 1080, dpr: 2 },
+  { name: 'iPad Air, iPad 10th gen',           w: 820, h: 1180, dpr: 2 },
+  { name: 'iPad Pro 10.5"',                    w: 834, h: 1112, dpr: 2 },
+  { name: 'iPad Pro 11", Air 11"',             w: 834, h: 1194, dpr: 2 },
+  { name: 'iPad Pro 12.9", 13"',               w: 1024, h: 1366, dpr: 2 },
 ];
 
 const launchManifest = [];
-for (const [width, height] of LAUNCH_SIZES) {
-  for (const scheme of ['light', 'dark']) {
-    const background = scheme === 'dark' ? brand.splashBackgroundDark : brand.splashBackground;
-    const name = `launch-${width}x${height}-${scheme}.png`;
-    emit(join(iconsDir, name), renderLaunch(width, height, background));
-    launchManifest.push({ name, width, height, scheme });
+for (const device of DEVICES) {
+  for (const orientation of ['portrait', 'landscape']) {
+    const portrait = orientation === 'portrait';
+    const cssWidth = portrait ? device.w : device.h;
+    const cssHeight = portrait ? device.h : device.w;
+    const width = cssWidth * device.dpr;
+    const height = cssHeight * device.dpr;
+
+    for (const scheme of ['light', 'dark']) {
+      const background = scheme === 'dark' ? brand.splashBackgroundDark : brand.splashBackground;
+      const name = `launch-${width}x${height}-${scheme}.png`;
+      emit(join(iconsDir, name), renderLaunch(width, height, background));
+      launchManifest.push({
+        name,
+        width,
+        height,
+        cssWidth,
+        cssHeight,
+        dpr: device.dpr,
+        orientation,
+        scheme,
+        device: device.name,
+      });
+    }
   }
 }
-console.log(`launch  ${launchManifest.length} iOS launch images`);
+console.log(`launch  ${launchManifest.length} iOS launch images for ${DEVICES.length} device sizes`);
+
+// Rewrite the <link> block in index.html from the same table, so the markup and
+// the images on disk can never drift apart. A light entry has no colour-scheme
+// clause so it also serves as the fallback; the dark one follows it, and iOS
+// takes the last matching link.
+const launchLinks = launchManifest
+  .map((image) => {
+    const media = [
+      `(device-width: ${image.cssWidth}px)`,
+      `(device-height: ${image.cssHeight}px)`,
+      `(-webkit-device-pixel-ratio: ${image.dpr})`,
+      `(orientation: ${image.orientation})`,
+      image.scheme === 'dark' ? '(prefers-color-scheme: dark)' : '',
+    ]
+      .filter(Boolean)
+      .join(' and ');
+    return `<link rel="apple-touch-startup-image" href="icons/${image.name}" media="${media}">`;
+  })
+  .join('\n');
+
+const indexPath = join(here, '..', 'public', 'index.html');
+const marker = /<!-- launch-images:start[^>]*-->[\s\S]*?<!-- launch-images:end -->/;
+const html = readFileSync(indexPath, 'utf8');
+if (!marker.test(html)) {
+  console.error('icons: index.html has no <!-- launch-images:start --> block to fill.');
+  process.exit(1);
+}
+writeFileSync(
+  indexPath,
+  html.replace(
+    marker,
+    `<!-- launch-images:start (generated by scripts/make-icons.mjs — do not edit by hand) -->\n${launchLinks}\n<!-- launch-images:end -->`
+  )
+);
+console.log(`launch  index.html rewritten with ${launchManifest.length} startup-image links`);
 
 writeFileSync(
   join(iconsDir, 'launch-images.json'),

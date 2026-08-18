@@ -1,21 +1,54 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../l10n/app_localizations.dart';
+import '../core/text_decode.dart';
+import '../platform/opened_files.dart';
 import '../state/conversion_provider.dart';
 import '../state/settings_provider.dart';
 import 'explainers.dart';
 import 'file_service.dart';
+import 'reader_page.dart';
 import 'result_card.dart';
 import 'settings_sheet.dart';
 
-class HomePage extends ConsumerWidget {
+class HomePage extends ConsumerStatefulWidget {
   const HomePage({super.key});
 
+  @override
+  ConsumerState<HomePage> createState() => _HomePageState();
+}
+
+class _HomePageState extends ConsumerState<HomePage> {
   static const FileService _files = FileService();
 
+  final OpenedFiles _opened = OpenedFiles();
+  StreamSubscription<OpenedFile>? _subscription;
+
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  void initState() {
+    super.initState();
+    // "Open with" from Files, Finder, Drive or a file manager: both the file
+    // the app was launched with and any that arrive while it is running.
+    _subscription = _opened.stream.listen(_receive);
+    WidgetsBinding.instance.addPostFrameCallback((_) async {
+      for (final file in await _opened.initial()) {
+        if (mounted) await _receive(file);
+      }
+    });
+  }
+
+  @override
+  void dispose() {
+    _subscription?.cancel();
+    _opened.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context);
     final entries = ref.watch(conversionProvider);
     final wide = MediaQuery.sizeOf(context).width >= 720;
@@ -61,7 +94,7 @@ class HomePage extends ConsumerWidget {
                   return Column(
                     crossAxisAlignment: CrossAxisAlignment.stretch,
                     children: [
-                      PickerCard(onPick: () => _pick(context, ref)),
+                      PickerCard(onPick: _pick, onOpenMarkdown: _openMarkdown),
                       const SizedBox(height: 16),
                       if (entries.isEmpty) EmptyState(message: l10n.emptyState),
                     ],
@@ -90,18 +123,49 @@ class HomePage extends ConsumerWidget {
     );
   }
 
-  Future<void> _pick(BuildContext context, WidgetRef ref) async {
+  Future<void> _pick() async {
     final files = await _files.pickFiles();
     if (files.isEmpty) return;
+
+    // Markdown is already the output format — read it rather than convert it.
+    final markdown = files.where((file) => isMarkdownFileName(file.name)).toList();
+    final rest = files.where((file) => !isMarkdownFileName(file.name)).toList();
+
+    if (markdown.isNotEmpty) await _read(markdown.first);
+    if (rest.isEmpty) return;
+
     final options = ref.read(settingsProvider).options;
-    await ref.read(conversionProvider.notifier).addFiles(files, options);
+    await ref.read(conversionProvider.notifier).addFiles(rest, options);
+  }
+
+  Future<void> _openMarkdown() async {
+    final file = await _files.pickMarkdown();
+    if (file != null) await _read(file);
+  }
+
+  /// A file handed over by the OS: Markdown goes to the reader, anything else
+  /// through the converter, which is what the user picked the app for.
+  Future<void> _receive(OpenedFile file) async {
+    if (isMarkdownFileName(file.name)) {
+      await _read(file);
+      return;
+    }
+    final options = ref.read(settingsProvider).options;
+    await ref.read(conversionProvider.notifier).addFiles([file], options);
+  }
+
+  Future<void> _read(PickedFile file) async {
+    final markdown = decodeText(file.bytes).text;
+    if (!mounted) return;
+    await ReaderPage.open(context, name: file.name, markdown: markdown);
   }
 }
 
 class PickerCard extends StatelessWidget {
-  const PickerCard({required this.onPick, super.key});
+  const PickerCard({required this.onPick, required this.onOpenMarkdown, super.key});
 
   final VoidCallback onPick;
+  final VoidCallback onOpenMarkdown;
 
   @override
   Widget build(BuildContext context) {
@@ -109,36 +173,51 @@ class PickerCard extends StatelessWidget {
     final scheme = Theme.of(context).colorScheme;
 
     return Card(
-      child: InkWell(
-        onTap: onPick,
-        child: Padding(
-          padding: const EdgeInsets.symmetric(vertical: 32, horizontal: 20),
-          child: Column(
-            children: [
-              Icon(Icons.file_open_outlined, size: 44, color: scheme.primary),
-              const SizedBox(height: 12),
-              FilledButton.icon(
-                onPressed: onPick,
-                icon: const Icon(Icons.add),
-                label: Text(l10n.chooseFiles),
-              ),
-              const SizedBox(height: 12),
-              Text(
-                l10n.dropHint,
-                textAlign: TextAlign.center,
-                style: Theme.of(context).textTheme.bodySmall,
-              ),
-              const SizedBox(height: 6),
-              Text(
-                l10n.privacyNote,
-                textAlign: TextAlign.center,
-                style: Theme.of(context)
-                    .textTheme
-                    .bodySmall
-                    ?.copyWith(color: scheme.onSurfaceVariant),
-              ),
-            ],
-          ),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(vertical: 32, horizontal: 20),
+        child: Column(
+          children: [
+            Icon(Icons.file_open_outlined, size: 44, color: scheme.primary),
+            const SizedBox(height: 12),
+            Wrap(
+              alignment: WrapAlignment.center,
+              spacing: 10,
+              runSpacing: 10,
+              children: [
+                FilledButton.icon(
+                  onPressed: onPick,
+                  icon: const Icon(Icons.add),
+                  label: Text(l10n.chooseFiles),
+                ),
+                OutlinedButton.icon(
+                  onPressed: onOpenMarkdown,
+                  icon: const Icon(Icons.menu_book_outlined),
+                  label: Text(l10n.openMarkdown),
+                ),
+              ],
+            ),
+            const SizedBox(height: 12),
+            Text(
+              l10n.dropHint,
+              textAlign: TextAlign.center,
+              style: Theme.of(context).textTheme.bodySmall,
+            ),
+            const SizedBox(height: 6),
+            Text(
+              l10n.openMarkdownHint,
+              textAlign: TextAlign.center,
+              style: Theme.of(context).textTheme.bodySmall,
+            ),
+            const SizedBox(height: 6),
+            Text(
+              l10n.privacyNote,
+              textAlign: TextAlign.center,
+              style: Theme.of(context)
+                  .textTheme
+                  .bodySmall
+                  ?.copyWith(color: scheme.onSurfaceVariant),
+            ),
+          ],
         ),
       ),
     );

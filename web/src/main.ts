@@ -4,6 +4,7 @@ import { ConversionResult, ConvertOptions, DEFAULT_OPTIONS, ImageMode } from './
 import { SUPPORTED_EXTENSIONS } from './core/convert.js';
 import { writeZip } from './core/zip.js';
 import { renderMarkdown } from './ui/markdown-preview.js';
+import { initReader, openReader, type ReaderDocument } from './ui/reader.js';
 import type { WorkerRequest, WorkerResponse } from './worker.js';
 
 const APP_VERSION = '1.0.0';
@@ -32,6 +33,8 @@ const dom = {
   fileInput: byId<HTMLInputElement>('file-input'),
   chooseButton: byId<HTMLButtonElement>('choose-button'),
   pasteButton: byId<HTMLButtonElement>('paste-button'),
+  mdInput: byId<HTMLInputElement>('md-input'),
+  openMdButton: byId<HTMLButtonElement>('open-md-button'),
   resultsSection: byId<HTMLElement>('results-section'),
   resultsList: byId<HTMLUListElement>('results-list'),
   resultsTitle: byId<HTMLElement>('results-title'),
@@ -58,6 +61,10 @@ function init(): void {
   dom.fileInput.accept = SUPPORTED_EXTENSIONS.join(',');
   dom.versionLabel.textContent = `v${APP_VERSION}`;
   applyTheme(localStorage.getItem(THEME_KEY) ?? 'system');
+  initReader({
+    copy: (markdown) => void copyText(markdown),
+    download: (opened: ReaderDocument) => saveBlob(markdownBlob(opened.markdown), opened.name),
+  });
   bindSettings();
   bindIntake();
   bindGlobalActions();
@@ -72,6 +79,13 @@ function bindIntake(): void {
   dom.fileInput.addEventListener('change', () => {
     if (dom.fileInput.files) void addFiles([...dom.fileInput.files]);
     dom.fileInput.value = '';
+  });
+
+  dom.openMdButton.addEventListener('click', () => dom.mdInput.click());
+  dom.mdInput.addEventListener('change', () => {
+    const file = dom.mdInput.files?.[0];
+    dom.mdInput.value = '';
+    if (file) void readMarkdownFile(file);
   });
 
   for (const type of ['dragenter', 'dragover']) {
@@ -207,7 +221,45 @@ function applyTheme(theme: string): void {
 
 /* ------------------------------------------------------------- conversion */
 
+/**
+ * Markdown is already the output format, so converting it would be a no-op.
+ * A `.md` file — dropped, pasted, opened from the Files app, or handed over by
+ * the OS through "Open with" — goes straight to the reading view instead.
+ */
+const MARKDOWN_EXTENSIONS = ['.md', '.markdown', '.mdown', '.mkd', '.mdx'];
+
+function isMarkdownFile(file: File): boolean {
+  const name = file.name.toLowerCase();
+  if (MARKDOWN_EXTENSIONS.some((extension) => name.endsWith(extension))) return true;
+  return file.type === 'text/markdown' || file.type === 'text/x-markdown';
+}
+
+async function readMarkdownFile(file: File): Promise<void> {
+  if (file.size > MAX_FILE_BYTES) {
+    toast(`That file is ${formatBytes(file.size)} — too large to open in one go.`);
+    return;
+  }
+  try {
+    const markdown = await file.text();
+    openReader({ name: file.name || 'document.md', markdown });
+  } catch {
+    toast('That file could not be read.');
+  }
+}
+
 async function addFiles(files: File[]): Promise<void> {
+  // Read the first Markdown file rather than converting it; convert the rest.
+  const markdown = files.filter(isMarkdownFile);
+  const rest = files.filter((file) => !isMarkdownFile(file));
+  if (markdown.length > 0) {
+    await readMarkdownFile(markdown[0]);
+    if (markdown.length > 1) toast(`Opened ${markdown[0].name} — Markdown files are read one at a time.`);
+    if (rest.length === 0) return;
+  }
+  await convertFiles(rest);
+}
+
+async function convertFiles(files: File[]): Promise<void> {
   const accepted = files.filter((file) => {
     if (file.size > MAX_FILE_BYTES) {
       addEntry(file.name, `The file is ${formatBytes(file.size)}, larger than this app will load in one go.`);
@@ -398,12 +450,16 @@ function updateResultsVisibility(): void {
 }
 
 async function copyMarkdown(result: ConversionResult): Promise<void> {
+  await copyText(result.markdown);
+}
+
+async function copyText(markdown: string): Promise<void> {
   try {
-    await navigator.clipboard.writeText(result.markdown);
+    await navigator.clipboard.writeText(markdown);
     toast('Markdown copied');
   } catch {
     const area = document.createElement('textarea');
-    area.value = result.markdown;
+    area.value = markdown;
     area.style.position = 'fixed';
     area.style.opacity = '0';
     document.body.append(area);
@@ -414,9 +470,12 @@ async function copyMarkdown(result: ConversionResult): Promise<void> {
   }
 }
 
+function markdownBlob(markdown: string): Blob {
+  return new Blob([markdown], { type: 'text/markdown;charset=utf-8' });
+}
+
 function downloadMarkdown(result: ConversionResult): void {
-  const blob = new Blob([result.markdown], { type: 'text/markdown;charset=utf-8' });
-  saveBlob(blob, result.outputName);
+  saveBlob(markdownBlob(result.markdown), result.outputName);
 }
 
 function downloadAllAsZip(): void {

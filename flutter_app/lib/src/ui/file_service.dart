@@ -36,6 +36,21 @@ class FileService {
     return files;
   }
 
+  /// Markdown only, for the reading view. `FileType.custom` is what puts the
+  /// app's own extensions in front of the user on iOS and Android.
+  Future<PickedFile?> pickMarkdown() async {
+    final selection = await FilePicker.platform.pickFiles(
+      withData: true,
+      type: FileType.custom,
+      allowedExtensions: markdownExtensions,
+    );
+    if (selection == null || selection.files.isEmpty) return null;
+    final file = selection.files.first;
+    final bytes = file.bytes ?? await _readPath(file.path);
+    if (bytes == null) return null;
+    return (name: file.name, bytes: bytes);
+  }
+
   Future<Uint8List?> _readPath(String? path) async {
     if (path == null) return null;
     try {
@@ -82,4 +97,14 @@ class FileService {
 
   /// Extensions the picker advertises; detection itself is content-based.
   List<String> get advertisedExtensions => supportedExtensions;
+}
+
+/// Markdown is already the output format, so a `.md` file is read rather than
+/// converted — whether it was picked, shared in, or handed over by the OS.
+/// Mirrors `MARKDOWN_EXTENSIONS` in `web/src/main.ts`.
+const List<String> markdownExtensions = ['md', 'markdown', 'mdown', 'mkd', 'mdx'];
+
+bool isMarkdownFileName(String name) {
+  final lower = name.toLowerCase();
+  return markdownExtensions.any((extension) => lower.endsWith('.$extension'));
 }
