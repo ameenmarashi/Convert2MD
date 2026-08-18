@@ -29,6 +29,18 @@ uploads, no account. Two apps from one design:
 Legacy binary `.doc`/`.xls`/`.ppt` are detected and answered with the one-line
 fix (re-save as the modern format) rather than a generic failure.
 
+## Live site
+
+**https://ameenmarashi.github.io/Convert2MD/**
+
+Published from `web/public` by `.github/workflows/deploy-pages.yml` on every
+push that touches `web/`. The workflow compiles the TypeScript, runs the test
+suite, and only then deploys — a failing test blocks the release.
+
+GitHub Pages serves this at a sub-path, which the app is built for: every URL is
+relative, the service worker scopes itself to `/Convert2MD/`, and the manifest
+uses `./` for `start_url` and `scope`.
+
 ## The PWA
 
 ```bash
