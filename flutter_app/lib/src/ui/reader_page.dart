@@ -3,8 +3,11 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_markdown/flutter_markdown.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 import '../../l10n/app_localizations.dart';
+import '../core/markdown_editing.dart';
+import 'editor_toolbar.dart';
 import 'file_service.dart';
 
 /// Reading view for a Markdown file.
@@ -38,14 +41,80 @@ class _ReaderPageState extends State<ReaderPage> {
   // Kept across pushes so the reader reopens at the size the reader chose.
   static int _scaleIndex = 1;
 
+  static const String _draftPrefix = 'md-converter.draft.';
+  static const Duration _previewDelay = Duration(milliseconds: 160);
+
   final ScrollController _scroll = ScrollController();
-  late final List<_Heading> _headings = _outlineOf(widget.markdown);
-  bool _showSource = false;
+  late final TextEditingController _controller = TextEditingController(text: widget.markdown);
+  late final FocusNode _inputFocus = FocusNode();
+
+  late List<_Heading> _headings = _outlineOf(widget.markdown);
+  late String _baseline = widget.markdown;
+  late String _rendered = widget.markdown;
+
+  bool _editing = false;
+  Timer? _previewTimer;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller.addListener(_onTextChanged);
+    unawaited(_restoreDraft());
+  }
 
   @override
   void dispose() {
+    _previewTimer?.cancel();
+    _controller.removeListener(_onTextChanged);
+    _controller.dispose();
+    _inputFocus.dispose();
     _scroll.dispose();
     super.dispose();
+  }
+
+  String get _markdown => _controller.text;
+
+  bool get _dirty => _markdown != _baseline;
+
+  /// Typing is kept on the device as it happens, so leaving the screen by
+  /// accident does not lose an hour of work. It is dropped once the file is
+  /// saved, and it never leaves the device.
+  Future<void> _restoreDraft() async {
+    final store = await SharedPreferences.getInstance();
+    final draft = store.getString('$_draftPrefix${widget.name}');
+    if (draft == null || draft == widget.markdown || !mounted) return;
+
+    _controller.text = draft;
+    setState(() {
+      _rendered = draft;
+      _headings = _outlineOf(draft);
+    });
+    _tell(AppLocalizations.of(context).editorDraftRestored);
+  }
+
+  Future<void> _saveDraft() async {
+    final store = await SharedPreferences.getInstance();
+    await store.setString('$_draftPrefix${widget.name}', _markdown);
+  }
+
+  Future<void> _clearDraft() async {
+    final store = await SharedPreferences.getInstance();
+    await store.remove('$_draftPrefix${widget.name}');
+  }
+
+  void _onTextChanged() {
+    // Re-parsing the whole document on every keystroke would stutter on a long
+    // file, so the redraw waits for a pause in typing.
+    _previewTimer?.cancel();
+    _previewTimer = Timer(_previewDelay, () {
+      if (!mounted) return;
+      setState(() {
+        _rendered = _markdown;
+        _headings = _outlineOf(_markdown);
+      });
+    });
+    unawaited(_saveDraft());
+    setState(() {});
   }
 
   @override
@@ -54,66 +123,240 @@ class _ReaderPageState extends State<ReaderPage> {
     final theme = Theme.of(context);
     final scale = _scales[_scaleIndex];
 
-    return Scaffold(
-      appBar: AppBar(
-        title: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Text(widget.name, style: theme.textTheme.titleSmall, overflow: TextOverflow.ellipsis),
-            Text(_describe(l10n), style: theme.textTheme.labelSmall),
-          ],
-        ),
-        actions: [
-          if (_headings.length > 1)
-            IconButton(
-              icon: const Icon(Icons.list_alt_outlined),
-              tooltip: l10n.readerContents,
-              onPressed: _showContents,
-            ),
-          IconButton(
-            icon: const Icon(Icons.text_decrease),
-            tooltip: l10n.readerSmaller,
-            onPressed: _scaleIndex == 0 ? null : () => setState(() => _scaleIndex--),
-          ),
-          IconButton(
-            icon: const Icon(Icons.text_increase),
-            tooltip: l10n.readerLarger,
-            onPressed: _scaleIndex == _scales.length - 1 ? null : () => setState(() => _scaleIndex++),
-          ),
-          PopupMenuButton<_ReaderAction>(
-            onSelected: _run,
-            itemBuilder: (context) => [
-              PopupMenuItem(
-                value: _ReaderAction.toggleSource,
-                child: Text(_showSource ? l10n.readerFormatted : l10n.readerSource),
-              ),
-              PopupMenuItem(value: _ReaderAction.copy, child: Text(l10n.copy)),
-              PopupMenuItem(value: _ReaderAction.save, child: Text(l10n.save)),
+    return PopScope(
+      canPop: !_dirty,
+      onPopInvokedWithResult: (didPop, _) {
+        if (!didPop) unawaited(_confirmLeave());
+      },
+      child: Scaffold(
+        appBar: AppBar(
+          title: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(widget.name, style: theme.textTheme.titleSmall, overflow: TextOverflow.ellipsis),
+              Text(_describe(l10n), style: theme.textTheme.labelSmall),
             ],
           ),
-        ],
-      ),
-      body: SafeArea(
-        child: Center(
-          child: ConstrainedBox(
-            // Roughly 74 characters at the base size — the measure prose reads
-            // best at, and the same one the web reader uses.
-            constraints: const BoxConstraints(maxWidth: 720),
-            child: _showSource
-                ? _SourceView(markdown: widget.markdown, scale: scale)
-                : Markdown(
-                    controller: _scroll,
-                    data: widget.markdown,
-                    selectable: true,
-                    padding: const EdgeInsets.fromLTRB(20, 16, 20, 64),
-                    styleSheet: _styleSheet(theme, scale),
-                    onTapLink: (_, href, __) => _openLink(href),
-                  ),
-          ),
+          actions: [
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 4),
+              child: SegmentedButton<bool>(
+                segments: [
+                  ButtonSegment(value: false, label: Text(l10n.read)),
+                  ButtonSegment(value: true, label: Text(l10n.edit)),
+                ],
+                selected: {_editing},
+                showSelectedIcon: false,
+                style: const ButtonStyle(visualDensity: VisualDensity.compact),
+                onSelectionChanged: (selection) => setState(() => _editing = selection.first),
+              ),
+            ),
+            if (!_editing && _headings.length > 1)
+              IconButton(
+                icon: const Icon(Icons.list_alt_outlined),
+                tooltip: l10n.readerContents,
+                onPressed: _showContents,
+              ),
+            IconButton(
+              icon: const Icon(Icons.text_decrease),
+              tooltip: l10n.readerSmaller,
+              onPressed: _scaleIndex == 0 ? null : () => setState(() => _scaleIndex--),
+            ),
+            IconButton(
+              icon: const Icon(Icons.text_increase),
+              tooltip: l10n.readerLarger,
+              onPressed: _scaleIndex == _scales.length - 1 ? null : () => setState(() => _scaleIndex++),
+            ),
+            PopupMenuButton<_ReaderAction>(
+              onSelected: _run,
+              itemBuilder: (context) => [
+                PopupMenuItem(value: _ReaderAction.copy, child: Text(l10n.copy)),
+                PopupMenuItem(value: _ReaderAction.save, child: Text(l10n.save)),
+              ],
+            ),
+          ],
+        ),
+        body: SafeArea(
+          child: _editing ? _buildEditor(context, scale) : _buildReader(theme, scale),
         ),
       ),
     );
+  }
+
+  Widget _buildReader(ThemeData theme, double scale) {
+    return Center(
+      child: ConstrainedBox(
+        // Roughly 74 characters at the base size — the measure prose reads best
+        // at, and the same one the web reader uses.
+        constraints: const BoxConstraints(maxWidth: 720),
+        child: Markdown(
+          controller: _scroll,
+          data: _rendered,
+          selectable: true,
+          padding: const EdgeInsets.fromLTRB(20, 16, 20, 64),
+          styleSheet: _styleSheet(theme, scale),
+          onTapLink: (_, href, __) => _openLink(href),
+        ),
+      ),
+    );
+  }
+
+  /// Text and preview together: watching one become the other is what teaches
+  /// the marks. Side by side where there is room, stacked where there is not.
+  Widget _buildEditor(BuildContext context, double scale) {
+    final l10n = AppLocalizations.of(context);
+    final theme = Theme.of(context);
+    final wide = MediaQuery.sizeOf(context).width >= 900;
+
+    final input = _EditorPane(
+      label: l10n.editorYourText,
+      child: Focus(
+        onKeyEvent: _onKeyEvent,
+        child: TextField(
+          controller: _controller,
+          focusNode: _inputFocus,
+          maxLines: null,
+          expands: true,
+          textAlignVertical: TextAlignVertical.top,
+          keyboardType: TextInputType.multiline,
+          decoration: InputDecoration(
+            hintText: l10n.editorPlaceholder,
+            border: const OutlineInputBorder(),
+            filled: true,
+            fillColor: theme.colorScheme.surfaceContainerLowest,
+          ),
+          style: TextStyle(fontSize: 14 * scale, height: 1.6),
+        ),
+      ),
+    );
+
+    final preview = _EditorPane(
+      label: l10n.editorPreviewLabel,
+      child: DecoratedBox(
+        decoration: BoxDecoration(
+          color: theme.colorScheme.surfaceContainerHighest,
+          borderRadius: BorderRadius.circular(8),
+        ),
+        child: Markdown(
+          data: _rendered,
+          padding: const EdgeInsets.all(14),
+          styleSheet: _styleSheet(theme, scale),
+          onTapLink: (_, href, __) => _openLink(href),
+        ),
+      ),
+    );
+
+    return Column(
+      children: [
+        EditorToolbar(onAction: _format),
+        Expanded(
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(12, 12, 12, 0),
+            child: wide
+                ? Row(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      Expanded(child: input),
+                      const SizedBox(width: 12),
+                      Expanded(child: preview),
+                    ],
+                  )
+                : Column(
+                    children: [
+                      // The writing surface gets the larger share; the preview
+                      // is there to be glanced at, not typed into.
+                      Expanded(flex: 3, child: input),
+                      const SizedBox(height: 10),
+                      Expanded(flex: 2, child: preview),
+                    ],
+                  ),
+          ),
+        ),
+        Padding(
+          padding: const EdgeInsets.fromLTRB(16, 8, 16, 0),
+          child: Align(
+            alignment: AlignmentDirectional.centerStart,
+            child: Text(
+              _dirty ? l10n.editorUnsaved : l10n.editorSaved,
+              style: theme.textTheme.labelSmall?.copyWith(
+                color: _dirty ? theme.colorScheme.tertiary : theme.colorScheme.onSurfaceVariant,
+                fontWeight: _dirty ? FontWeight.w700 : null,
+              ),
+            ),
+          ),
+        ),
+        const CheatSheet(),
+      ],
+    );
+  }
+
+  /* ------------------------------------------------------------- editing */
+
+  void _format(EditorAction action) {
+    final selection = _controller.selection;
+    final start = selection.start < 0 ? _markdown.length : selection.start;
+    final end = selection.end < 0 ? start : selection.end;
+
+    _applyEdit(applyAction(action, _markdown, start, end));
+    _inputFocus.requestFocus();
+  }
+
+  void _applyEdit(EditResult result) {
+    _controller.value = TextEditingValue(
+      text: result.text,
+      selection: TextSelection(baseOffset: result.start, extentOffset: result.end),
+    );
+  }
+
+  /// Enter continues a list and Tab nests one — the two things that make a
+  /// list feel like a list rather than like typing dashes. Outside a list both
+  /// keys do what they always do, so Tab can still move focus out of the field.
+  KeyEventResult _onKeyEvent(FocusNode node, KeyEvent event) {
+    if (event is! KeyDownEvent) return KeyEventResult.ignored;
+
+    final selection = _controller.selection;
+    if (!selection.isValid) return KeyEventResult.ignored;
+
+    final shift = HardwareKeyboard.instance.isShiftPressed;
+
+    if (event.logicalKey == LogicalKeyboardKey.enter && !shift && selection.isCollapsed) {
+      final result = continueList(_markdown, selection.baseOffset);
+      if (result == null) return KeyEventResult.ignored;
+      _applyEdit(result);
+      return KeyEventResult.handled;
+    }
+
+    if (event.logicalKey == LogicalKeyboardKey.tab) {
+      final result = indentListItems(_markdown, selection.start, selection.end, outdent: shift);
+      if (result == null) return KeyEventResult.ignored;
+      _applyEdit(result);
+      return KeyEventResult.handled;
+    }
+
+    return KeyEventResult.ignored;
+  }
+
+  Future<void> _confirmLeave() async {
+    final l10n = AppLocalizations.of(context);
+    final leave = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: Text(l10n.editorDiscardTitle),
+        content: Text(l10n.editorDiscardBody),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(dialogContext).pop(false),
+            child: Text(l10n.editorDiscardStay),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.of(dialogContext).pop(true),
+            child: Text(l10n.editorDiscardLeave),
+          ),
+        ],
+      ),
+    );
+    if (leave == true && mounted) Navigator.of(context).pop();
   }
 
   MarkdownStyleSheet _styleSheet(ThemeData theme, double scale) {
@@ -140,7 +383,7 @@ class _ReaderPageState extends State<ReaderPage> {
   }
 
   String _describe(AppLocalizations l10n) {
-    final words = widget.markdown
+    final words = _rendered
         .replaceAll(RegExp(r'```[\s\S]*?```'), ' ')
         .replaceAll(RegExp(r'[#*_>`|-]'), ' ')
         .split(RegExp(r'\s+'))
@@ -148,15 +391,14 @@ class _ReaderPageState extends State<ReaderPage> {
         .length;
     // 200 wpm is the usual figure for reading prose on a screen.
     final minutes = (words / 200).round();
-    return l10n.readerMeta(words, minutes < 1 ? 1 : minutes);
+    final meta = l10n.readerMeta(words, minutes < 1 ? 1 : minutes);
+    return _dirty ? '$meta · ${l10n.editorUnsavedShort}' : meta;
   }
 
   void _run(_ReaderAction action) {
     switch (action) {
-      case _ReaderAction.toggleSource:
-        setState(() => _showSource = !_showSource);
       case _ReaderAction.copy:
-        Clipboard.setData(ClipboardData(text: widget.markdown));
+        Clipboard.setData(ClipboardData(text: _markdown));
         _tell(AppLocalizations.of(context).copied);
       case _ReaderAction.save:
         unawaited(_save());
@@ -165,8 +407,14 @@ class _ReaderPageState extends State<ReaderPage> {
 
   Future<void> _save() async {
     final l10n = AppLocalizations.of(context);
-    final destination = await _files.save(widget.name, widget.markdown);
-    if (destination != null && mounted) _tell(l10n.savedTo(destination));
+    final destination = await _files.save(widget.name, _markdown);
+    if (destination == null || !mounted) return;
+
+    // Saving is how a document leaves the app, so it is what "saved" means
+    // here — the draft it was keeping is no longer needed.
+    setState(() => _baseline = _markdown);
+    await _clearDraft();
+    if (mounted) _tell(l10n.savedTo(destination));
   }
 
   void _showContents() {
@@ -198,7 +446,7 @@ class _ReaderPageState extends State<ReaderPage> {
   /// by that fraction lands on the right screen without a second layout pass.
   void _scrollTo(_Heading heading) {
     if (!_scroll.hasClients) return;
-    final fraction = heading.offset / widget.markdown.length;
+    final fraction = heading.offset / _rendered.length;
     final target = _scroll.position.maxScrollExtent * fraction;
     _scroll.animateTo(
       target.clamp(0, _scroll.position.maxScrollExtent),
@@ -222,22 +470,37 @@ class _ReaderPageState extends State<ReaderPage> {
   }
 }
 
-enum _ReaderAction { toggleSource, copy, save }
+enum _ReaderAction { copy, save }
 
-class _SourceView extends StatelessWidget {
-  const _SourceView({required this.markdown, required this.scale});
+/// One labelled half of the editor — the text, or what it will look like.
+class _EditorPane extends StatelessWidget {
+  const _EditorPane({required this.label, required this.child});
 
-  final String markdown;
-  final double scale;
+  final String label;
+  final Widget child;
 
   @override
   Widget build(BuildContext context) {
-    return SingleChildScrollView(
-      padding: const EdgeInsets.fromLTRB(20, 16, 20, 64),
-      child: SelectableText(
-        markdown,
-        style: TextStyle(fontSize: 13 * scale, height: 1.5),
-      ),
+    final theme = Theme.of(context);
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        Padding(
+          padding: const EdgeInsets.only(bottom: 6, left: 2),
+          child: Align(
+            alignment: AlignmentDirectional.centerStart,
+            child: Text(
+              label.toUpperCase(),
+              style: theme.textTheme.labelSmall?.copyWith(
+                letterSpacing: 1.2,
+                fontWeight: FontWeight.w700,
+                color: theme.colorScheme.onSurfaceVariant,
+              ),
+            ),
+          ),
+        ),
+        Expanded(child: child),
+      ],
     );
   }
 }

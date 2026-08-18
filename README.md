@@ -55,13 +55,35 @@ viewer would. Setting *Images* to "Leave out entirely" prevents it.
 You can verify the whole claim: install the app, turn off the network, and
 convert a file.
 
-## Reading Markdown
+## Reading and editing Markdown
 
 A `.md` file is already the finished document, so there is nothing to convert.
 **Open a .md file** puts it in a reading view instead: one comfortable measure,
-a contents list built from the headings, adjustable text size, a source toggle,
-and a print stylesheet so "Save as PDF" produces something worth sending on.
-It is the answer to the pile of `.md` files that AI tools hand back.
+a contents list built from the headings, adjustable text size, and a print
+stylesheet so "Save as PDF" produces something worth sending on. It is the
+answer to the pile of `.md` files that AI tools hand back.
+
+Switch to **Edit** and the same document becomes editable, built for someone who
+has never used Markdown:
+
+- **A toolbar that says what it makes**, not what it inserts — *Big heading*,
+  *Bulleted list*, *Checklist*, *Link*. Nothing has to be memorised to start.
+- **The preview beside the text, redrawing as you type**, so the connection
+  between `## ` and a heading is learned by watching rather than by reading.
+- **Typing help that does what the marks imply.** Enter continues a list and
+  counts numbers on; Enter on an empty item ends it; Tab nests an item under the
+  one above; Shift+Tab lifts it back out. Ctrl/⌘ + B, I and K are wired up.
+- **Buttons that toggle.** Bold on bold text takes the marks off; a heading
+  button on a heading of another level converts it rather than stacking.
+- **Undo that works.** Every toolbar press goes onto the browser's own undo
+  stack, so Ctrl+Z steps back through them exactly as it does through typing.
+- **A cheat sheet in nine lines**, collapsed until asked for.
+- **Nothing is lost.** Typing is kept as a draft on the device as it happens and
+  offered back next time the file is opened; closing with unsaved edits says so.
+
+The editing rules live in one place per app — `web/src/ui/editor.ts` and
+`flutter_app/lib/src/core/markdown_editing.dart` — and are asserted against the
+same cases in both suites.
 
 Markdown that arrives any other way — dropped on the window, picked from the
 file dialog, or handed over by the operating system — goes to the reader too;

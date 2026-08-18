@@ -64,6 +64,7 @@ function init(): void {
   initReader({
     copy: (markdown) => void copyText(markdown),
     download: (opened: ReaderDocument) => saveBlob(markdownBlob(opened.markdown), opened.name),
+    toast: (message: string) => toast(message),
   });
   bindSettings();
   bindIntake();

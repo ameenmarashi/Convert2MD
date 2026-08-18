@@ -68,10 +68,11 @@ lib/
     │   ├── text_decode.dart       BOM sniffing, cp1252 fallback
     │   └── xml_query.dart         namespace-tolerant XML queries
     ├── converters/                one file per format, plus pdf/ (8 modules)
+    │   ├── markdown_editing.dart  editor rules as pure functions
     ├── platform/
     │   └── opened_files.dart      documents the OS hands over ("Open with")
     ├── state/                     Riverpod providers (settings, conversions)
-    └── ui/                        home page, reader page, result card, settings
+    └── ui/                        home, reader/editor, toolbar, result card, settings
 platform/                          native halves, installed by tool/
 ├── android/  MainActivity.kt, intent-filters.xml
 ├── ios/      AppDelegate.swift
@@ -80,13 +81,20 @@ tool/
 └── configure_platforms.sh         registers the document types after create
 ```
 
-## Reading Markdown
+## Reading and editing Markdown
 
 A `.md` file is already the finished document, so `ReaderPage` shows it rather
-than converting it: one measure, a contents sheet built from the headings,
-adjustable text size and a source toggle. Markdown reaches it three ways — the
-**Open a .md file** button, a `.md` among the files picked for conversion, and
-a document handed over by the operating system.
+than converting it: one measure, a contents sheet built from the headings and
+adjustable text size. Markdown reaches it three ways — the **Open a .md file**
+button, a `.md` among the files picked for conversion, and a document handed
+over by the operating system.
+
+Switching to **Edit** puts the text and a live preview side by side, with a
+toolbar whose buttons say what they make. The rules — what Bold does to a
+selection, what Enter does inside a list — are pure functions in
+`lib/src/core/markdown_editing.dart`, mirroring `web/src/ui/editor.ts`, and are
+covered by `test/markdown_editing_test.dart` against the same cases the PWA's
+editor was checked against in a browser.
 
 ## Open with
 

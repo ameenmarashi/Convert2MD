@@ -417,7 +417,7 @@
 </footer>
 
 <!-- Reading view for .md files: covers the app, prints as a clean document. -->
-<section id="reader" class="reader" hidden aria-label="Markdown reader">
+<section id="reader" class="reader" hidden aria-label="Markdown reader and editor">
   <header class="reader__bar">
     <button type="button" id="reader-close" class="button button--icon button--small" aria-label="Close the document" title="Close">✕</button>
     <div class="reader__heading">
@@ -425,19 +425,90 @@
       <span id="reader-meta" class="reader__meta"></span>
     </div>
     <div class="reader__actions">
+      <div class="modes" role="group" aria-label="Reading or editing">
+        <button type="button" id="mode-read" class="modes__button" aria-pressed="true">Read</button>
+        <button type="button" id="mode-edit" class="modes__button" aria-pressed="false">Edit</button>
+      </div>
       <button type="button" id="reader-contents" class="button button--small button--ghost" aria-expanded="false">Contents</button>
       <button type="button" id="reader-smaller" class="button button--icon button--small" aria-label="Smaller text" title="Smaller text">A−</button>
       <button type="button" id="reader-larger" class="button button--icon button--small" aria-label="Larger text" title="Larger text">A+</button>
-      <button type="button" id="reader-source" class="button button--small button--ghost" aria-pressed="false">Source</button>
       <button type="button" id="reader-copy" class="button button--small button--ghost">Copy</button>
       <button type="button" id="reader-download" class="button button--small button--ghost">Save</button>
       <button type="button" id="reader-print" class="button button--small button--ghost">Print / PDF</button>
     </div>
   </header>
+
+  <!-- Buttons say what they make, so nothing has to be memorised to start. -->
+  <div id="editor-toolbar" class="toolbar" role="toolbar" aria-label="Formatting" hidden>
+    <div class="toolbar__group">
+      <button type="button" class="toolbar__button" data-action="h1" title="Big heading — the title of the document (#)">H1</button>
+      <button type="button" class="toolbar__button" data-action="h2" title="Heading — starts a section (##)">H2</button>
+      <button type="button" class="toolbar__button" data-action="h3" title="Small heading — a part of a section (###)">H3</button>
+    </div>
+    <div class="toolbar__group">
+      <button type="button" class="toolbar__button toolbar__button--bold" data-action="bold" title="Bold — makes text stand out (**text**). Ctrl/⌘ + B">B</button>
+      <button type="button" class="toolbar__button toolbar__button--italic" data-action="italic" title="Italic — for emphasis or a term (*text*). Ctrl/⌘ + I">I</button>
+      <button type="button" class="toolbar__button toolbar__button--strike" data-action="strike" title="Crossed out — for something no longer true (~~text~~)">S</button>
+      <button type="button" class="toolbar__button" data-action="code" title="Code — keeps text exactly as typed (`text`)">&lt;/&gt;</button>
+    </div>
+    <div class="toolbar__group">
+      <button type="button" class="toolbar__button" data-action="bullet" title="Bulleted list — items in no particular order (- item)">• List</button>
+      <button type="button" class="toolbar__button" data-action="number" title="Numbered list — steps in order (1. item)">1. List</button>
+      <button type="button" class="toolbar__button" data-action="task" title="Checklist — things to tick off (- [ ] task)">☐ Tasks</button>
+    </div>
+    <div class="toolbar__group">
+      <button type="button" class="toolbar__button" data-action="link" title="Link — text that opens a page ([text](address)). Ctrl/⌘ + K">🔗 Link</button>
+      <button type="button" class="toolbar__button" data-action="quote" title="Quote — someone else&#8217;s words, set apart (&gt; text)">&rdquo; Quote</button>
+      <button type="button" class="toolbar__button" data-action="table" title="Table — rows and columns of values">▦ Table</button>
+      <button type="button" class="toolbar__button" data-action="rule" title="Divider — a line between sections (---)">— Divider</button>
+    </div>
+  </div>
+
   <div class="reader__body">
     <nav id="reader-toc" class="reader__toc" hidden aria-label="Contents"></nav>
     <article id="reader-doc" class="reader__doc markdown-body" tabindex="-1"></article>
-    <pre id="reader-source-panel" class="reader__source" hidden><code id="reader-source-code"></code></pre>
+
+    <div id="editor" class="editor" hidden>
+      <div class="editor__panes">
+        <div class="editor__pane editor__pane--write">
+          <label class="editor__label" for="editor-input">Your text</label>
+          <textarea id="editor-input" class="editor__input" spellcheck="true"
+            aria-describedby="editor-help" placeholder="Start typing. Use the buttons above — the preview shows what each mark does."></textarea>
+        </div>
+        <div class="editor__pane editor__pane--preview">
+          <span class="editor__label">How it will look</span>
+          <div id="editor-preview" class="editor__preview markdown-body" aria-live="off"></div>
+        </div>
+      </div>
+
+      <p id="editor-status" class="editor__status">All changes saved on this device</p>
+
+      <details class="panel disclosure editor__cheatsheet" id="editor-help">
+        <summary class="panel__summary">
+          <span>New to Markdown? The whole thing in nine lines</span>
+          <span class="panel__chevron" aria-hidden="true">▾</span>
+        </summary>
+        <div class="panel__body">
+          <p class="disclosure__lede">You never have to type these — the buttons above do it. But this is all there is.</p>
+          <table class="cheatsheet">
+            <thead><tr><th>You type</th><th>You get</th></tr></thead>
+            <tbody>
+              <tr><td><code># Title</code></td><td>A big heading</td></tr>
+              <tr><td><code>## Section</code></td><td>A smaller heading</td></tr>
+              <tr><td><code>**bold**</code></td><td><strong>bold</strong></td></tr>
+              <tr><td><code>*italic*</code></td><td><em>italic</em></td></tr>
+              <tr><td><code>- item</code></td><td>A bulleted list</td></tr>
+              <tr><td><code>1. item</code></td><td>A numbered list</td></tr>
+              <tr><td><code>- [ ] task</code></td><td>A checklist you can tick</td></tr>
+              <tr><td><code>[text](address)</code></td><td>A link</td></tr>
+              <tr><td><code>&gt; words</code></td><td>A quote, set apart</td></tr>
+            </tbody>
+          </table>
+          <p class="disclosure__note"><strong>Two things the editor does for you:</strong> press Enter in a list and the next item appears by itself — press it again on an empty item to end the list. Press Tab on a list item to nest it underneath the one above.</p>
+          <p class="disclosure__note">A blank line separates paragraphs. That is genuinely the whole format.</p>
+        </div>
+      </details>
+    </div>
   </div>
 </section>
 

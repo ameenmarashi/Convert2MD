@@ -13,6 +13,14 @@
  */
 
 import { renderMarkdown } from './markdown-preview.js';
+import {
+  editorIsDirty,
+  editorMarkdown,
+  focusEditor,
+  initEditor,
+  loadIntoEditor,
+  markEditorSaved,
+} from './editor.js';
 
 const SIZE_KEY = 'md-converter.reader-size';
 const SIZES = [0.9, 1, 1.15, 1.3, 1.5];
@@ -29,25 +37,32 @@ interface ReaderDom {
   meta: HTMLElement;
   doc: HTMLElement;
   toc: HTMLElement;
-  source: HTMLElement;
-  sourceCode: HTMLElement;
+  editor: HTMLElement;
+  toolbar: HTMLElement;
   contentsButton: HTMLButtonElement;
-  sourceButton: HTMLButtonElement;
+  readButton: HTMLButtonElement;
+  editButton: HTMLButtonElement;
 }
+
+type Mode = 'read' | 'edit';
 
 let dom: ReaderDom | null = null;
 let current: ReaderDocument | null = null;
 let sizeIndex = SIZES.indexOf(DEFAULT_SIZE);
 let onCopy: ((markdown: string) => void) | null = null;
 let onDownload: ((document: ReaderDocument) => void) | null = null;
+let onToast: ((message: string) => void) | null = null;
+let mode: Mode = 'read';
 
 /** Wires the reader chrome once, at startup. */
 export function initReader(handlers: {
   copy(markdown: string): void;
   download(document: ReaderDocument): void;
+  toast(message: string): void;
 }): void {
   onCopy = handlers.copy;
   onDownload = handlers.download;
+  onToast = handlers.toast;
 
   dom = {
     root: required('reader'),
@@ -55,11 +70,14 @@ export function initReader(handlers: {
     meta: required('reader-meta'),
     doc: required('reader-doc'),
     toc: required('reader-toc'),
-    source: required('reader-source-panel'),
-    sourceCode: required('reader-source-code'),
+    editor: required('editor'),
+    toolbar: required('editor-toolbar'),
     contentsButton: required<HTMLButtonElement>('reader-contents'),
-    sourceButton: required<HTMLButtonElement>('reader-source'),
+    readButton: required<HTMLButtonElement>('mode-read'),
+    editButton: required<HTMLButtonElement>('mode-edit'),
   };
+
+  initEditor({ changed: () => updateMeta() });
 
   sizeIndex = loadSize();
   applySize();
@@ -68,24 +86,22 @@ export function initReader(handlers: {
   required('reader-larger').addEventListener('click', () => stepSize(1));
   required('reader-smaller').addEventListener('click', () => stepSize(-1));
   required('reader-print').addEventListener('click', () => window.print());
-  required('reader-copy').addEventListener('click', () => {
-    if (current) onCopy?.(current.markdown);
-  });
+  required('reader-copy').addEventListener('click', () => onCopy?.(markdownNow()));
   required('reader-download').addEventListener('click', () => {
-    if (current) onDownload?.(current);
+    if (!current) return;
+    onDownload?.({ name: current.name, markdown: markdownNow() });
+    // Downloading is how a document leaves this app, so it is what "saved"
+    // means here — the draft it was keeping is no longer needed.
+    if (mode === 'edit') markEditorSaved();
   });
+
+  dom.readButton.addEventListener('click', () => setMode('read'));
+  dom.editButton.addEventListener('click', () => setMode('edit'));
 
   dom.contentsButton.addEventListener('click', () => {
     const showing = !dom!.toc.hidden;
     dom!.toc.hidden = showing;
     dom!.contentsButton.setAttribute('aria-expanded', String(!showing));
-  });
-
-  dom.sourceButton.addEventListener('click', () => {
-    const showingSource = dom!.source.hidden;
-    dom!.source.hidden = !showingSource;
-    dom!.doc.hidden = showingSource;
-    dom!.sourceButton.setAttribute('aria-pressed', String(showingSource));
   });
 
   document.addEventListener('keydown', (event) => {
@@ -107,15 +123,15 @@ export function openReader(document_: ReaderDocument): void {
   current = document_;
 
   dom.name.textContent = document_.name;
-  dom.meta.textContent = describe(document_.markdown);
 
   dom.doc.replaceChildren(renderMarkdown(document_.markdown));
-  dom.sourceCode.textContent = document_.markdown;
-  dom.source.hidden = true;
-  dom.doc.hidden = false;
-  dom.sourceButton.setAttribute('aria-pressed', 'false');
+  const { restoredDraft } = loadIntoEditor(document_.name, document_.markdown);
+  setMode('read');
+  updateMeta();
 
-  buildContents();
+  if (restoredDraft) {
+    onToast?.('Unsaved edits from last time were restored — switch to Edit to see them.');
+  }
 
   dom.root.hidden = false;
   document.body.classList.add('is-reading');
@@ -127,16 +143,71 @@ export function openReader(document_: ReaderDocument): void {
   }
 }
 
-export function closeReader(options: { fromHistory?: boolean } = {}): void {
+export function closeReader(options: { fromHistory?: boolean; force?: boolean } = {}): void {
   if (!dom || dom.root.hidden) return;
+
+  // Edits are kept as a draft on this device, but a beginner will not know
+  // that — so say it, rather than letting the document vanish silently.
+  if (editorIsDirty() && !options.force) {
+    const leave = window.confirm(
+      'You have edits you have not saved.\n\n' +
+        'They are kept on this device and will still be here next time you open this file. ' +
+        'Close anyway?'
+    );
+    if (!leave) return;
+  }
+
   dom.root.hidden = true;
   dom.doc.replaceChildren();
-  dom.sourceCode.textContent = '';
   current = null;
   document.body.classList.remove('is-reading');
   if (!options.fromHistory && window.history.state?.reader === true) {
     window.history.back();
   }
+}
+
+/* ------------------------------------------------------------------- mode */
+
+/** The text as it stands: what is being edited if editing, else the original. */
+function markdownNow(): string {
+  return mode === 'edit' ? editorMarkdown() : current?.markdown ?? '';
+}
+
+function setMode(next: Mode): void {
+  if (!dom) return;
+  mode = next;
+  const editing = next === 'edit';
+
+  dom.editor.hidden = !editing;
+  dom.toolbar.hidden = !editing;
+  dom.doc.hidden = editing;
+  // Editing owns the height: the panes scroll inside themselves so the toolbar
+  // and the save line stay put. Reading lets the whole document scroll.
+  dom.root.classList.toggle('reader--editing', editing);
+  // The contents list navigates the rendered document, which is not on screen
+  // while editing.
+  dom.contentsButton.hidden = editing || dom.toc.childElementCount === 0;
+  if (editing) dom.toc.hidden = true;
+
+  dom.readButton.setAttribute('aria-pressed', String(!editing));
+  dom.editButton.setAttribute('aria-pressed', String(editing));
+
+  if (editing) {
+    focusEditor();
+  } else if (current) {
+    // Coming back from editing shows what was just written, not what was
+    // opened — otherwise Read would look like the edits had been lost.
+    const markdown = editorMarkdown();
+    dom.doc.replaceChildren(renderMarkdown(markdown));
+    buildContents();
+  }
+  updateMeta();
+}
+
+function updateMeta(): void {
+  if (!dom) return;
+  const suffix = editorIsDirty() ? ' · unsaved' : '';
+  dom.meta.textContent = describe(markdownNow()) + suffix;
 }
 
 /* ---------------------------------------------------------------- contents */
