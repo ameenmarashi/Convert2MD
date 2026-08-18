@@ -1,0 +1,19 @@
+{
+  "_comment": "Single source of truth for the visual identity. `npm --prefix web run icons` regenerates every icon, splash and launch image from these values, for the PWA and for the iOS/Android apps alike. The Flutter launcher-icon and splash config in flutter_app/pubspec.yaml mirrors `splashBackground` and `splashBackgroundDark`.",
+
+  "monogram": "MD",
+
+  "gradientStart": "#6366f1",
+  "gradientEnd": "#06b6d4",
+  "onGradient": "#ffffff",
+
+  "accent": "#4f46e5",
+  "accentDark": "#8b87ff",
+
+  "splashBackground": "#f5f6fb",
+  "splashBackgroundDark": "#0b1020",
+
+  "cornerRadiusRatio": 0.223,
+  "strokeRatio": 0.09,
+  "capHeightRatio": 0.39
+}

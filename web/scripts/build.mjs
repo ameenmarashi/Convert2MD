@@ -14,8 +14,12 @@ const root = join(dirname(fileURLToPath(import.meta.url)), '..');
 const publicDir = join(root, 'public');
 const templatePath = join(root, 'scripts', 'sw-template.js');
 
-const EXCLUDED = new Set(['sw.js']);
+const EXCLUDED = new Set(['sw.js', 'icons/launch-images.json']);
 const EXCLUDED_EXTENSIONS = ['.map', '.DS_Store'];
+// iOS fetches a launch image once, while installing to the Home Screen, and
+// keeps it itself. Precaching all 16 would double the offline bundle for
+// something the app never requests at runtime.
+const EXCLUDED_PREFIXES = ['icons/launch-'];
 
 function walk(dir) {
   const out = [];
@@ -39,6 +43,7 @@ const files = walk(publicDir)
   .map((file) => relative(publicDir, file).split(sep).join('/'))
   .filter((file) => !EXCLUDED.has(file))
   .filter((file) => !EXCLUDED_EXTENSIONS.some((ext) => file.endsWith(ext)))
+  .filter((file) => !EXCLUDED_PREFIXES.some((prefix) => file.startsWith(prefix)))
   .sort();
 
 const hash = createHash('sha256');

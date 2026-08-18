@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../l10n/app_localizations.dart';
 import '../state/conversion_provider.dart';
 import '../state/settings_provider.dart';
+import 'explainers.dart';
 import 'file_service.dart';
 import 'result_card.dart';
 import 'settings_sheet.dart';
@@ -53,7 +54,8 @@ class HomePage extends ConsumerWidget {
             constraints: const BoxConstraints(maxWidth: 900),
             child: ListView.builder(
               padding: EdgeInsets.fromLTRB(wide ? 24 : 12, 12, wide ? 24 : 12, 32),
-              itemCount: entries.length + 1,
+              // Header, one card per conversion, then the two explainers.
+              itemCount: entries.length + 2,
               itemBuilder: (context, index) {
                 if (index == 0) {
                   return Column(
@@ -62,6 +64,17 @@ class HomePage extends ConsumerWidget {
                       PickerCard(onPick: () => _pick(context, ref)),
                       const SizedBox(height: 16),
                       if (entries.isEmpty) EmptyState(message: l10n.emptyState),
+                    ],
+                  );
+                }
+                if (index == entries.length + 1) {
+                  return const Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      SizedBox(height: 8),
+                      WhyMarkdownCard(expanded: true),
+                      SizedBox(height: 12),
+                      AboutSection(),
                     ],
                   );
                 }

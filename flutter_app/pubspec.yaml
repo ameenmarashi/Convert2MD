@@ -40,6 +40,41 @@ dev_dependencies:
     sdk: flutter
   flutter_lints: ^4.0.0
 
+  # Generate the launcher icon and the launch screen for both platforms from
+  # one source image, so iOS and Android are identical by construction.
+  flutter_launcher_icons: ^0.14.1
+  flutter_native_splash: ^2.4.1
+
 flutter:
   uses-material-design: true
   generate: true
+  assets:
+    - assets/branding/
+
+# Both blocks below take their colours from ../brand.json. Regenerate the source
+# images with `npm --prefix ../web run icons`, then:
+#   dart run flutter_launcher_icons
+#   dart run flutter_native_splash:create
+flutter_launcher_icons:
+  image_path: assets/branding/icon-1024.png
+  android: true
+  ios: true
+  remove_alpha_ios: true
+  macos:
+    generate: true
+    image_path: assets/branding/icon-1024.png
+  adaptive_icon_background: assets/branding/icon-background-1024.png
+  adaptive_icon_foreground: assets/branding/icon-foreground-1024.png
+
+flutter_native_splash:
+  color: "#f5f6fb"
+  color_dark: "#0b1020"
+  image: assets/branding/splash-logo.png
+  image_dark: assets/branding/splash-logo.png
+  android: true
+  ios: true
+  android_12:
+    image: assets/branding/splash-logo.png
+    color: "#f5f6fb"
+    color_dark: "#0b1020"
+  fullscreen: false

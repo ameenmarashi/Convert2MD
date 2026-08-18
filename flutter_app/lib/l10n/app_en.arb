@@ -1,14 +1,11 @@
 {
   "@@locale": "en",
-
   "appTitle": "MD Converter",
   "appTagline": "Any document → Markdown, entirely on your device",
-
   "chooseFiles": "Choose files",
   "dropHint": "PDF · Word · Excel · PowerPoint · Google exports · OpenDocument · EPUB · RTF · HTML · Email · CSV · Text · Images",
   "privacyNote": "Nothing is uploaded. Every conversion runs on this device.",
   "emptyState": "Pick a document to convert",
-
   "settings": "Conversion settings",
   "settingsFrontMatter": "YAML front matter",
   "settingsFrontMatterHint": "Adds title, source file and metadata at the top",
@@ -32,7 +29,6 @@
   "settingsThemeDark": "Dark",
   "settingsLanguage": "Language",
   "settingsLanguageSystem": "Follow system",
-
   "resultsTitle": "Converted files",
   "converting": "Converting…",
   "copy": "Copy",
@@ -45,27 +41,70 @@
   "copied": "Markdown copied",
   "savedTo": "Saved to {path}",
   "@savedTo": {
-    "placeholders": { "path": { "type": "String" } }
+    "placeholders": {
+      "path": {
+        "type": "String"
+      }
+    }
   },
   "saveFailed": "The file could not be saved",
   "warnings": "Warnings",
-
   "statsWords": "{count, plural, =1{1 word} other{{count} words}}",
   "@statsWords": {
-    "placeholders": { "count": { "type": "int" } }
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
   },
   "statsImages": "{count, plural, =1{1 image} other{{count} images}}",
   "@statsImages": {
-    "placeholders": { "count": { "type": "int" } }
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
   },
   "statsDuration": "{ms} ms",
   "@statsDuration": {
-    "placeholders": { "ms": { "type": "int" } }
+    "placeholders": {
+      "ms": {
+        "type": "int"
+      }
+    }
   },
-
   "errorTitle": "Could not convert",
   "aboutTitle": "Works offline, keeps your files private",
   "aboutOffline": "Everything — including the PDF and Word engines — runs on the device. No connection is needed.",
   "aboutPrivate": "There is no server and no upload. Files are read, converted and forgotten.",
-  "aboutQuality": "Headings, lists, tables, links, footnotes, speaker notes and images are carried across."
+  "aboutQuality": "Headings, lists, tables, links, footnotes, speaker notes and images are carried across.",
+  "whyMarkdownTitle": "Why Markdown, in a nutshell",
+  "whyMarkdownLede": "Markdown is plain text with a handful of marks for structure — # for a heading, - for a list item, | for a table. That is the whole format, and it is why it lasts.",
+  "whyMarkdownShort": "Markdown outlives the software that wrote it, keeps structure without dragging fonts and page margins along, and is the format AI tools, search indexes and site generators read directly. One small file, no container, no hidden revision history.",
+  "whyReason1Title": "It outlives the software that wrote it",
+  "whyReason1Body": "A .docx needs Word. A .md file opens in any text editor, on any device, in twenty years.",
+  "whyReason2Title": "Structure survives; styling gets out of the way",
+  "whyReason2Body": "Headings, lists, tables and links are kept as meaning. Fonts, margins and page breaks — which only ever served the printed page — are dropped.",
+  "whyReason3Title": "It is what AI tools read best",
+  "whyReason3Body": "Language models, retrieval pipelines, static site generators and note apps take Markdown directly, with no conversion layer in between.",
+  "whyReason4Title": "It is searchable, diffable, versionable",
+  "whyReason4Body": "Plain text means grep finds it and Git tracks every change line by line — so you can see exactly what moved between two drafts.",
+  "whyReason5Title": "It is one small file",
+  "whyReason5Body": "No zip container, no embedded metadata, no tracked changes or comment threads travelling silently with the document.",
+  "whyMarkdownClose": "Converting to Markdown keeps the content and drops everything that was only there to serve the page.",
+  "aboutTitle2": "What this app does",
+  "aboutLede": "Pick a document; get a Markdown file out. Every conversion runs on this device — there is no server, nothing is uploaded, and no account is needed.",
+  "aboutStep1Title": "Reads the real file",
+  "aboutStep1Body": "It opens the actual container — the OOXML parts inside a .docx, the object graph inside a PDF — rather than scraping visible text.",
+  "aboutStep2Title": "Recovers the structure",
+  "aboutStep2Body": "Headings, lists, tables, links, footnotes, speaker notes and images are identified. In PDFs, headings and paragraphs are inferred from font size and layout, and repeating headers and footers are dropped.",
+  "aboutStep3Title": "Writes clean Markdown",
+  "aboutStep3Body": "Preview it, copy it, or save and share it. Optional YAML front matter records the title, author and source file.",
+  "aboutPrivateTitle": "Nothing leaves the device",
+  "aboutPrivateBody": "There is no server and no upload — which is what makes it safe for patient records, contracts and anything else confidential.",
+  "aboutOfflineTitle": "Works with no connection",
+  "aboutOfflineBody": "Every parser is built into the app. It keeps working on a plane, in a basement, with the network off.",
+  "aboutFormatsTitle": "What you can convert",
+  "aboutFormats": "PDF · Word · Excel · PowerPoint · Google Docs, Sheets & Slides exports · OpenDocument · EPUB · RTF · HTML · Email · CSV · Text · Subtitles · Source code · Images",
+  "learnMore": "The longer version"
 }

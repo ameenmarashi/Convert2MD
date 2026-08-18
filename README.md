@@ -109,6 +109,34 @@ It uses Riverpod for state, `package:archive`/`xml`/`html` for parsing, and runs
 each conversion on a background isolate. The UI is localised (English and
 Arabic, RTL included) with no hardcoded display strings.
 
+## Branding
+
+`brand.json` at the repository root is the single source of the visual identity —
+the monogram, the gradient, the accent and the launch-screen backgrounds.
+
+```bash
+npm --prefix web run icons     # regenerates every icon, splash and launch image
+```
+
+That one command writes the PWA icons, favicon, Apple touch icon and 16 iOS
+launch images into `web/public/icons/`, and the 1024px icon, Android adaptive
+layers and splash logo into `flutter_app/assets/branding/`. The monogram is drawn
+as geometry rather than set in a typeface, so it renders identically everywhere
+with no font dependency.
+
+For the native apps, after `flutter create` has generated the platform folders:
+
+```bash
+cd flutter_app
+dart run flutter_launcher_icons        # app icon: iOS, Android (adaptive), macOS
+dart run flutter_native_splash:create  # launch screen: iOS, Android, Android 12+
+```
+
+Both read the same generated images and the same background colours, so the icon
+and the launch screen are identical on iOS and Android by construction. The PWA
+matches them through `manifest.webmanifest` (`background_color`) and the
+`apple-touch-startup-image` links in `index.html`, in light and dark.
+
 ## Repository layout
 
 ```

@@ -28,7 +28,11 @@
   --safe-left: env(safe-area-inset-left, 0px);
   --safe-right: env(safe-area-inset-right, 0px);
   --font: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  /* Display face for the wordmark and section headings; swapped as one token. */
+  --font-display: var(--font);
   --mono: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, "Liberation Mono", monospace;
+  --tracking-tight: -0.02em;
+  --tracking-wide: 0.08em;
 }
 
 @media (prefers-color-scheme: dark) {
@@ -802,5 +806,211 @@ main {
 @media print {
   .app-bar, .dropzone, .panel, .results__actions, .card__tabs, .about, .app-footer, .toast {
     display: none !important;
+  }
+}
+
+
+/* ----------------------------------------------------- why Markdown / about */
+
+.explainer,
+.about {
+  background: var(--bg-elevated);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
+  padding: 24px 20px;
+}
+
+.explainer h2,
+.about h2 {
+  font-family: var(--font-display);
+  font-size: 1.25rem;
+  letter-spacing: var(--tracking-tight);
+  margin-bottom: 10px;
+}
+
+.explainer__lede,
+.about__lede {
+  margin: 0 0 20px;
+  font-size: 1rem;
+  color: var(--text-muted);
+  max-width: 62ch;
+}
+
+.explainer__close {
+  margin: 18px 0 0;
+  padding-top: 16px;
+  border-top: 1px solid var(--border);
+  font-size: 0.9375rem;
+  color: var(--text-muted);
+  max-width: 62ch;
+}
+
+.reasons,
+.steps {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 18px;
+  counter-reset: item;
+}
+
+.reasons > li,
+.steps > li {
+  counter-increment: item;
+  position: relative;
+  padding-left: 40px;
+}
+
+.reasons > li::before {
+  content: counter(item);
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: 28px;
+  height: 28px;
+  display: grid;
+  place-items: center;
+  border-radius: 50%;
+  background: var(--accent-soft);
+  color: var(--accent);
+  font-size: 0.8125rem;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+
+.steps__number {
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: 28px;
+  height: 28px;
+  display: grid;
+  place-items: center;
+  border-radius: 8px;
+  background: var(--accent);
+  color: var(--accent-contrast);
+  font-size: 0.8125rem;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+
+.reasons h3,
+.steps h3 {
+  font-size: 0.9375rem;
+  margin-bottom: 4px;
+}
+
+.reasons p,
+.steps p {
+  margin: 0;
+  font-size: 0.875rem;
+  color: var(--text-muted);
+  max-width: 62ch;
+}
+
+.about__subhead {
+  font-size: 0.75rem;
+  font-weight: 700;
+  letter-spacing: var(--tracking-wide);
+  text-transform: uppercase;
+  color: var(--text-muted);
+  margin: 28px 0 12px;
+}
+
+.formats {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.formats li {
+  padding: 5px 12px;
+  border: 1px solid var(--border-strong);
+  border-radius: 999px;
+  font-size: 0.8125rem;
+  color: var(--text-muted);
+  white-space: nowrap;
+}
+
+.about__install {
+  margin: 0;
+  font-size: 0.875rem;
+  color: var(--text-muted);
+}
+
+.about__grid {
+  margin-top: 28px;
+}
+
+/* The compact "why" card that sits at the top of the settings panel. */
+.nutshell {
+  grid-column: 1 / -1;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--bg-sunken);
+  margin: 8px 0 4px;
+  overflow: hidden;
+}
+
+.nutshell__summary {
+  cursor: pointer;
+  list-style: none;
+  padding: 12px 14px;
+  min-height: var(--tap);
+  display: flex;
+  align-items: center;
+  font-weight: 600;
+  font-size: 0.9375rem;
+}
+
+.nutshell__summary::-webkit-details-marker {
+  display: none;
+}
+
+.nutshell__summary::after {
+  content: "▾";
+  margin-left: auto;
+  color: var(--text-muted);
+  transition: transform 0.2s ease;
+}
+
+.nutshell[open] .nutshell__summary::after {
+  transform: rotate(180deg);
+}
+
+.nutshell__body {
+  padding: 0 14px 14px;
+}
+
+.nutshell__body p {
+  margin: 0 0 8px;
+  font-size: 0.875rem;
+  color: var(--text-muted);
+  max-width: 62ch;
+}
+
+.nutshell__body p:last-child {
+  margin-bottom: 0;
+}
+
+@media (min-width: 700px) {
+  .explainer,
+  .about {
+    padding: 32px 28px;
+  }
+
+  .reasons {
+    grid-template-columns: 1fr 1fr;
+    gap: 20px 28px;
+  }
+
+  .steps {
+    grid-template-columns: repeat(3, 1fr);
+    gap: 24px;
   }
 }

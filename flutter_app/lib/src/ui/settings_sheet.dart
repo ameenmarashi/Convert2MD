@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../l10n/app_localizations.dart';
 import '../core/conversion.dart';
 import '../state/settings_provider.dart';
+import 'explainers.dart';
 
 Future<void> showSettingsSheet(BuildContext context) {
   return showModalBottomSheet<void>(
@@ -35,6 +36,10 @@ class SettingsSheet extends ConsumerWidget {
           Padding(
             padding: const EdgeInsets.fromLTRB(16, 4, 16, 12),
             child: Text(l10n.settings, style: Theme.of(context).textTheme.titleLarge),
+          ),
+          const Padding(
+            padding: EdgeInsets.fromLTRB(8, 0, 8, 8),
+            child: WhyMarkdownCard(),
           ),
           SwitchListTile(
             value: options.frontMatter,
