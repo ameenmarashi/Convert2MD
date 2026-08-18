@@ -1,0 +1,71 @@
+{
+  "@@locale": "ar",
+
+  "appTitle": "محوّل ماركداون",
+  "appTagline": "أي مستند إلى ماركداون، على جهازك بالكامل",
+
+  "chooseFiles": "اختيار الملفات",
+  "dropHint": "PDF · وورد · إكسل · باوربوينت · ملفات جوجل · OpenDocument · EPUB · RTF · HTML · بريد · CSV · نصوص · صور",
+  "privacyNote": "لا يتم رفع أي شيء. كل تحويل يجري على هذا الجهاز.",
+  "emptyState": "اختر مستنداً لتحويله",
+
+  "settings": "إعدادات التحويل",
+  "settingsFrontMatter": "بيانات YAML التمهيدية",
+  "settingsFrontMatterHint": "تضيف العنوان واسم الملف والبيانات الوصفية في الأعلى",
+  "settingsSeparators": "فواصل الصفحات والشرائح",
+  "settingsSeparatorsHint": "تكتب --- بين صفحات PDF والشرائح والفصول",
+  "settingsNotes": "الملاحظات والتعليقات",
+  "settingsNotesHint": "ملاحظات المقدّم والحواشي وتعليقات المراجعة",
+  "settingsPdfHeadings": "اكتشاف عناوين PDF",
+  "settingsPdfHeadingsHint": "يحوّل النص الأكبر في ملفات PDF إلى عناوين ماركداون",
+  "settingsLineBreaks": "الإبقاء على فواصل الأسطر الأصلية",
+  "settingsLineBreaksHint": "عند الإيقاف تُدمج الفقرات في أسطر متصلة",
+  "settingsImages": "الصور",
+  "settingsImagesEmbed": "تضمينها في ماركداون (base64)",
+  "settingsImagesReference": "ربطها باسم الملف",
+  "settingsImagesSkip": "استبعادها تماماً",
+  "settingsBullet": "رمز القائمة",
+  "settingsImageLimit": "أكبر حجم صورة مضمّنة",
+  "settingsTheme": "المظهر",
+  "settingsThemeSystem": "حسب النظام",
+  "settingsThemeLight": "فاتح",
+  "settingsThemeDark": "داكن",
+  "settingsLanguage": "اللغة",
+  "settingsLanguageSystem": "حسب النظام",
+
+  "resultsTitle": "الملفات المحوَّلة",
+  "converting": "جارٍ التحويل…",
+  "copy": "نسخ",
+  "share": "مشاركة",
+  "save": "حفظ",
+  "remove": "إزالة",
+  "clearAll": "مسح الكل",
+  "preview": "معاينة",
+  "markdownSource": "ماركداون",
+  "copied": "تم نسخ ماركداون",
+  "savedTo": "تم الحفظ في {path}",
+  "@savedTo": {
+    "placeholders": { "path": { "type": "String" } }
+  },
+  "saveFailed": "تعذّر حفظ الملف",
+  "warnings": "تنبيهات",
+
+  "statsWords": "{count, plural, zero{لا كلمات} one{كلمة واحدة} two{كلمتان} few{{count} كلمات} many{{count} كلمة} other{{count} كلمة}}",
+  "@statsWords": {
+    "placeholders": { "count": { "type": "int" } }
+  },
+  "statsImages": "{count, plural, zero{لا صور} one{صورة واحدة} two{صورتان} few{{count} صور} many{{count} صورة} other{{count} صورة}}",
+  "@statsImages": {
+    "placeholders": { "count": { "type": "int" } }
+  },
+  "statsDuration": "{ms} م.ث",
+  "@statsDuration": {
+    "placeholders": { "ms": { "type": "int" } }
+  },
+
+  "errorTitle": "تعذّر التحويل",
+  "aboutTitle": "يعمل دون اتصال ويحافظ على خصوصية ملفاتك",
+  "aboutOffline": "كل شيء — بما في ذلك محرّكا PDF ووورد — يعمل على الجهاز. لا حاجة لأي اتصال.",
+  "aboutPrivate": "لا يوجد خادم ولا رفع للملفات. تُقرأ الملفات وتُحوَّل ثم تُنسى.",
+  "aboutQuality": "تُنقل العناوين والقوائم والجداول والروابط والحواشي وملاحظات المقدّم والصور."
+}

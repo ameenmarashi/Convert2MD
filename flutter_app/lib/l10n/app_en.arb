@@ -1,0 +1,71 @@
+{
+  "@@locale": "en",
+
+  "appTitle": "MD Converter",
+  "appTagline": "Any document → Markdown, entirely on your device",
+
+  "chooseFiles": "Choose files",
+  "dropHint": "PDF · Word · Excel · PowerPoint · Google exports · OpenDocument · EPUB · RTF · HTML · Email · CSV · Text · Images",
+  "privacyNote": "Nothing is uploaded. Every conversion runs on this device.",
+  "emptyState": "Pick a document to convert",
+
+  "settings": "Conversion settings",
+  "settingsFrontMatter": "YAML front matter",
+  "settingsFrontMatterHint": "Adds title, source file and metadata at the top",
+  "settingsSeparators": "Page and slide separators",
+  "settingsSeparatorsHint": "Writes --- between PDF pages, slides and chapters",
+  "settingsNotes": "Notes and comments",
+  "settingsNotesHint": "Speaker notes, footnotes and review comments",
+  "settingsPdfHeadings": "Detect PDF headings",
+  "settingsPdfHeadingsHint": "Promotes larger text in PDFs to Markdown headings",
+  "settingsLineBreaks": "Keep original line breaks",
+  "settingsLineBreaksHint": "Off reflows paragraphs into single lines",
+  "settingsImages": "Images",
+  "settingsImagesEmbed": "Embed in the Markdown (base64)",
+  "settingsImagesReference": "Link by file name",
+  "settingsImagesSkip": "Leave out entirely",
+  "settingsBullet": "List bullet",
+  "settingsImageLimit": "Largest embedded image",
+  "settingsTheme": "Appearance",
+  "settingsThemeSystem": "Follow system",
+  "settingsThemeLight": "Light",
+  "settingsThemeDark": "Dark",
+  "settingsLanguage": "Language",
+  "settingsLanguageSystem": "Follow system",
+
+  "resultsTitle": "Converted files",
+  "converting": "Converting…",
+  "copy": "Copy",
+  "share": "Share",
+  "save": "Save",
+  "remove": "Remove",
+  "clearAll": "Clear all",
+  "preview": "Preview",
+  "markdownSource": "Markdown",
+  "copied": "Markdown copied",
+  "savedTo": "Saved to {path}",
+  "@savedTo": {
+    "placeholders": { "path": { "type": "String" } }
+  },
+  "saveFailed": "The file could not be saved",
+  "warnings": "Warnings",
+
+  "statsWords": "{count, plural, =1{1 word} other{{count} words}}",
+  "@statsWords": {
+    "placeholders": { "count": { "type": "int" } }
+  },
+  "statsImages": "{count, plural, =1{1 image} other{{count} images}}",
+  "@statsImages": {
+    "placeholders": { "count": { "type": "int" } }
+  },
+  "statsDuration": "{ms} ms",
+  "@statsDuration": {
+    "placeholders": { "ms": { "type": "int" } }
+  },
+
+  "errorTitle": "Could not convert",
+  "aboutTitle": "Works offline, keeps your files private",
+  "aboutOffline": "Everything — including the PDF and Word engines — runs on the device. No connection is needed.",
+  "aboutPrivate": "There is no server and no upload. Files are read, converted and forgotten.",
+  "aboutQuality": "Headings, lists, tables, links, footnotes, speaker notes and images are carried across."
+}
