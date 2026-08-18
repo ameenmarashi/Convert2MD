@@ -3,23 +3,23 @@
 :root {
   color-scheme: light dark;
 
-  --bg: #f5f6fb;
-  --bg-elevated: #ffffff;
-  --bg-sunken: #eceef7;
-  --text: #16181f;
-  --text-muted: #5a6072;
-  --border: #dfe2ee;
-  --border-strong: #c4c9dc;
-  --accent: #4f46e5;
-  --accent-strong: #4338ca;
-  --accent-soft: #eceafe;
-  --accent-contrast: #ffffff;
+  --bg: #e9f4f3;
+  --bg-elevated: #fbfdfd;
+  --bg-sunken: #ddedeb;
+  --text: #12293f;
+  --text-muted: #5b7183;
+  --border: #cfe4e0;
+  --border-strong: #a8ccc5;
+  --accent: #33b795;
+  --accent-strong: #229478;
+  --accent-soft: #d6f0e7;
+  --accent-contrast: #0c2033;
   --danger: #b42318;
   --danger-soft: #fee4e2;
-  --warn: #9a6700;
-  --warn-soft: #fff6d8;
-  --ok: #067647;
-  --shadow: 0 1px 2px rgb(16 24 40 / 6%), 0 8px 24px rgb(16 24 40 / 6%);
+  --warn: #8a5a00;
+  --warn-soft: #fdf0d2;
+  --ok: #12855c;
+  --shadow: 0 1px 2px rgb(18 41 63 / 6%), 0 8px 24px rgb(18 41 63 / 8%);
   --radius: 14px;
   --radius-sm: 10px;
   --tap: 44px;
@@ -27,27 +27,29 @@
   --safe-bottom: env(safe-area-inset-bottom, 0px);
   --safe-left: env(safe-area-inset-left, 0px);
   --safe-right: env(safe-area-inset-right, 0px);
-  --font: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  /* IBM Plex Mono throughout, as on the Rx Suite apps. Self-hosted in
+     public/fonts so an installed, offline PWA still renders in the brand face. */
+  --font: "IBM Plex Mono", ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, "Liberation Mono", monospace;
   /* Display face for the wordmark and section headings; swapped as one token. */
   --font-display: var(--font);
-  --mono: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, "Liberation Mono", monospace;
+  --mono: var(--font);
   --tracking-tight: -0.02em;
   --tracking-wide: 0.08em;
 }
 
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme="light"]) {
-    --bg: #0b1020;
-    --bg-elevated: #151b2e;
-    --bg-sunken: #10162a;
-    --text: #e8eaf3;
-    --text-muted: #9aa3bd;
-    --border: #26304c;
-    --border-strong: #364163;
-    --accent: #8b87ff;
-    --accent-strong: #a5a1ff;
-    --accent-soft: #1f2547;
-    --accent-contrast: #0b1020;
+    --bg: #0e1b28;
+    --bg-elevated: #16273a;
+    --bg-sunken: #0a1520;
+    --text: #e4f0ee;
+    --text-muted: #93aab8;
+    --border: #25405a;
+    --border-strong: #36597a;
+    --accent: #5fd4b0;
+    --accent-strong: #86e2c6;
+    --accent-soft: #143a35;
+    --accent-contrast: #0a1520;
     --danger: #ff9b8f;
     --danger-soft: #3a1d1d;
     --warn: #ffd580;
@@ -58,17 +60,17 @@
 }
 
 [data-theme="dark"] {
-  --bg: #0b1020;
-  --bg-elevated: #151b2e;
-  --bg-sunken: #10162a;
-  --text: #e8eaf3;
-  --text-muted: #9aa3bd;
-  --border: #26304c;
-  --border-strong: #364163;
-  --accent: #8b87ff;
-  --accent-strong: #a5a1ff;
-  --accent-soft: #1f2547;
-  --accent-contrast: #0b1020;
+  --bg: #0e1b28;
+  --bg-elevated: #16273a;
+  --bg-sunken: #0a1520;
+  --text: #e4f0ee;
+  --text-muted: #93aab8;
+  --border: #25405a;
+  --border-strong: #36597a;
+  --accent: #5fd4b0;
+  --accent-strong: #86e2c6;
+  --accent-soft: #143a35;
+  --accent-contrast: #0a1520;
   --danger: #ff9b8f;
   --danger-soft: #3a1d1d;
   --warn: #ffd580;
@@ -175,7 +177,9 @@ code, pre {
 
 .app-bar__tagline {
   margin: 2px 0 0;
-  font-size: 0.75rem;
+  /* A monospaced face sets much wider than the old UI font, so the tagline
+     needs the smaller step to survive a 390px phone without ellipsing. */
+  font-size: 0.6875rem;
   color: var(--text-muted);
   white-space: nowrap;
   overflow: hidden;
@@ -449,6 +453,12 @@ main {
 .results {
   display: grid;
   gap: 14px;
+}
+
+/* A `display` on the element itself outranks the UA rule for [hidden], which is
+   how the empty results bar was showing before anything had been converted. */
+[hidden] {
+  display: none !important;
 }
 
 .results__bar {

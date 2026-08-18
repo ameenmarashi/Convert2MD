@@ -2,14 +2,19 @@
   <title>MD Converter</title>
   <defs>
     <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
-      <stop offset="0" stop-color="#6366f1"/>
-      <stop offset="1" stop-color="#06b6d4"/>
+      <stop offset="0" stop-color="#6ed7b4"/>
+      <stop offset="1" stop-color="#35b898"/>
     </linearGradient>
   </defs>
   <rect width="512" height="512" rx="114" fill="url(#bg)"/>
-  <g fill="none" stroke="#ffffff" stroke-width="46" stroke-linecap="round" stroke-linejoin="round">
-    <path d="M92.7 332.8V179.2L161.5 280l68.8-100.8v153.6"/>
-    <path d="M309.6 179.2v153.6"/>
-    <path d="M309.6 179.2h32.9a76.8 76.8 0 0 1 0 153.6h-32.9"/>
+  <!-- Monogram geometry mirrors web/scripts/make-icons.mjs: square terminals,
+       the M mitred to a point at the vee, the D an even-weight bowl. -->
+  <g fill="#12293f">
+    <path d="M67 153.6h42v204.8h-42z"/>
+    <path d="M201 153.6h42v204.8h-42z"/>
+    <path d="M155 322.4 88 199.4l36.8-20.1 67 123z"/>
+    <path d="M155 322.4 222 199.4l-36.8-20.1-67 123z"/>
+    <path d="M297 153.6h42v204.8h-42z"/>
+    <path d="M297 153.6h53.5a102.4 102.4 0 0 1 0 204.8H297v-42h53.5a60.4 60.4 0 0 0 0-120.8H297z"/>
   </g>
 </svg>
