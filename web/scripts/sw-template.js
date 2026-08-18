@@ -19,9 +19,28 @@ self.addEventListener('install', (event) => {
           }
         })
       );
-      await self.skipWaiting();
+      // Deliberately no skipWaiting() here. A new version finishes downloading
+      // and then waits, so the page can show that an update is ready and let
+      // the user apply it — rather than swapping the app out underneath them
+      // mid-edit. The page sends `skip-waiting` when they press the button.
     })()
   );
+});
+
+self.addEventListener('message', (event) => {
+  const data = event.data;
+  if (!data || typeof data !== 'object') return;
+
+  if (data.type === 'skip-waiting') {
+    self.skipWaiting();
+    return;
+  }
+
+  // The cache name is a content hash of everything shipped, so it is the one
+  // honest answer to "which build am I running?".
+  if (data.type === 'version') {
+    event.ports[0]?.postMessage({ version: CACHE_NAME });
+  }
 });
 
 self.addEventListener('activate', (event) => {

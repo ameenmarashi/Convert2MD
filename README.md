@@ -116,6 +116,28 @@ declaration is what puts it in Finder's and Files' "Open with" list.
 For the native apps this wiring lives in `flutter_app/platform/` and is
 installed by `flutter_app/tool/configure_platforms.sh` after `flutter create`.
 
+## Updates
+
+The app bar carries a circular arrow. Pressing it looks for a newer version,
+downloads it, and — pressed again once a green dot appears — installs it and
+reloads onto it. The dot is the only signal the app ever raises on its own.
+
+**It only ever looks while the app is open.** There are three checks and no
+others: one when the app starts, one when it comes back to the foreground (at
+most every 15 minutes), and one whenever the button is pressed. No Periodic
+Background Sync and no push subscription are registered, which is what would
+otherwise let a service worker reach the network with the app closed — verified
+by counting requests for `sw.js` with every page shut: zero.
+
+The service worker downloads a new version and then *waits*, rather than
+activating on its own. That is deliberate: an update that swaps the app out
+mid-edit is worse than one that waits to be asked. Unsaved editor work is kept
+as a draft either way, and applying an update while editing asks first.
+
+`v1.0.0 · build a1b2c3d` in the footer names the build actually running — the
+hash comes from the worker serving the page, so it cannot drift from what is on
+screen.
+
 ## Live site
 
 **https://ameenmarashi.github.io/Convert2MD/**

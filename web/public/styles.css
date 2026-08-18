@@ -1670,3 +1670,69 @@ body.is-reading {
     display: none !important;
   }
 }
+
+/* ------------------------------------------------------------------ update */
+
+/* A circular arrow in the app bar. It checks for a new version when pressed,
+   and installs one that is already waiting. The green dot is the only signal
+   the app ever raises on its own — and it can only appear while the app is
+   open, because that is the only time anything is checked. */
+
+.update {
+  position: relative;
+}
+
+.update__icon {
+  display: inline-block;
+  font-size: 1.15rem;
+  line-height: 1;
+}
+
+.update--checking .update__icon {
+  animation: update-spin 0.9s linear infinite;
+}
+
+@keyframes update-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .update--checking .update__icon {
+    animation: none;
+    opacity: 0.5;
+  }
+}
+
+.update__dot {
+  position: absolute;
+  top: 6px;
+  right: 6px;
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: var(--ok);
+  /* A ring in the bar's own colour, so the dot reads as a badge on the button
+     rather than as part of the glyph. */
+  box-shadow: 0 0 0 2px var(--bg);
+}
+
+.update--ready {
+  border-color: var(--ok);
+}
+
+.update--ready .update__icon {
+  color: var(--ok);
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .update--ready .update__dot {
+    animation: update-pulse 2.4s ease-in-out infinite;
+  }
+}
+
+@keyframes update-pulse {
+  0%, 100% { transform: scale(1); }
+  50% { transform: scale(1.25); }
+}

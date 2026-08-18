@@ -5,6 +5,8 @@ import { SUPPORTED_EXTENSIONS } from './core/convert.js';
 import { writeZip } from './core/zip.js';
 import { renderMarkdown } from './ui/markdown-preview.js';
 import { initReader, openReader, type ReaderDocument } from './ui/reader.js';
+import { editorIsDirty } from './ui/editor.js';
+import { initUpdates } from './ui/updates.js';
 import type { WorkerRequest, WorkerResponse } from './worker.js';
 
 const APP_VERSION = '1.0.0';
@@ -46,7 +48,6 @@ const dom = {
   themeIcon: byId<HTMLElement>('theme-icon'),
   installButton: byId<HTMLButtonElement>('install-button'),
   offlineBadge: byId<HTMLElement>('offline-badge'),
-  versionLabel: byId<HTMLElement>('version-label'),
 };
 
 function byId<T extends HTMLElement>(id: string): T {
@@ -59,7 +60,6 @@ function byId<T extends HTMLElement>(id: string): T {
 
 function init(): void {
   dom.fileInput.accept = SUPPORTED_EXTENSIONS.join(',');
-  dom.versionLabel.textContent = `v${APP_VERSION}`;
   applyTheme(localStorage.getItem(THEME_KEY) ?? 'system');
   initReader({
     copy: (markdown) => void copyText(markdown),
@@ -70,7 +70,18 @@ function init(): void {
   bindIntake();
   bindGlobalActions();
   bindDisclosures();
-  registerServiceWorker();
+  initUpdates({
+    version: APP_VERSION,
+    toast,
+    // Applying an update reloads the page. Edits survive as a draft, but a
+    // reload out of nowhere is still startling, so it gets a question.
+    confirmReload: () =>
+      !editorIsDirty() ||
+      window.confirm(
+        'Install the update now?\n\n' +
+          'The page will reload. Your unsaved edits are kept on this device and will be here afterwards.'
+      ),
+  });
   watchConnectivity();
   handleLaunchFiles();
   void collectSharedFiles();
@@ -638,15 +649,6 @@ async function collectSharedFiles(): Promise<void> {
 }
 
 /* ------------------------------------------------------- offline plumbing */
-
-function registerServiceWorker(): void {
-  if (!('serviceWorker' in navigator)) return;
-  window.addEventListener('load', () => {
-    navigator.serviceWorker.register('sw.js').catch(() => {
-      // Registration fails on file:// and in some private modes; the app still runs.
-    });
-  });
-}
 
 function watchConnectivity(): void {
   const update = (): void => {
