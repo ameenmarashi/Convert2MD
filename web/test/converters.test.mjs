@@ -10,8 +10,9 @@ import { convertFile, detectFormat } from '../public/js/core/convert.js';
 import { DEFAULT_OPTIONS } from '../public/js/core/types.js';
 import { sniffDelimiter, parseDelimited } from '../public/js/converters/csv.js';
 import {
-  makeCsv, makeDocx, makeEml, makeEpub, makeHtml, makeOdt, makePdf, makePptx, makeRtf, makeXlsx,
-  sourceFile,
+  makeCsv, makeDocx, makeEml, makeEpub, makeGdocShortcut, makeGoogleDocsDocx, makeGoogleDocsHtml,
+  makeGoogleSheetsXlsx, makeGoogleSlidesPptx, makeHtml, makeOdt, makePdf, makePptx, makeRtf,
+  makeXlsx, sourceFile,
 } from './fixtures.mjs';
 
 const options = { ...DEFAULT_OPTIONS };
@@ -340,4 +341,58 @@ test('front matter can be switched off', () => {
   const result = convert('review.docx', makeDocx(), { frontMatter: false });
   assert.ok(!result.markdown.startsWith('---'));
   assert.equal(result.outputName, 'review.md');
+});
+
+/* ------------------------------------------------- Google Drive exports */
+
+test('Google Docs .docx export converts headings, lists, tables and links', () => {
+  const result = convert('Team Handbook.docx', makeGoogleDocsDocx());
+
+  assert.equal(result.format, 'Word (.docx)');
+  assert.match(result.markdown, /^# Team Handbook$/m);
+  assert.match(result.markdown, /^# Working hours$/m);
+  assert.match(result.markdown, /^## Contacts$/m);
+  assert.match(result.markdown, /Core hours are \*\*10:00 to 16:00\*\*, and the rest is flexible\./);
+  assert.match(result.markdown, /^- Stand-up at 10:15$/m);
+  assert.match(result.markdown, /^ {2}- Fifteen minutes, standing$/m);
+  assert.match(result.markdown, /^- Retro on Fridays$/m);
+  assert.match(result.markdown, /\| Team +\| Channel +\|/);
+  assert.match(result.markdown, /\| Platform \| #platform \|/);
+  assert.match(result.markdown, /\[Company wiki]\(https:\/\/wiki\.example\.com\/\)/);
+});
+
+test('Google Sheets .xlsx export resolves the unnumbered worksheet part', () => {
+  const result = convert('Budget.xlsx', makeGoogleSheetsXlsx());
+
+  assert.equal(result.format, 'Excel (.xlsx)');
+  assert.match(result.markdown, /\| Item +\| Cost \|/);
+  assert.match(result.markdown, /\| Hosting \| 240 +\|/);
+  assert.match(result.markdown, /\| Domains \| 36 +\|/);
+  assert.ok(!result.markdown.includes('Empty sheet'));
+});
+
+test('Google Slides .pptx export uses ctrTitle and indexed body placeholders', () => {
+  const result = convert('Launch plan.pptx', makeGoogleSlidesPptx());
+
+  assert.equal(result.format, 'PowerPoint (.pptx)');
+  assert.match(result.markdown, /^## Launch plan$/m);
+  assert.match(result.markdown, /^- Freeze scope$/m);
+  assert.match(result.markdown, /^ {2}- Except security fixes$/m);
+  assert.match(result.markdown, /^- \*\*Ship on the 20th\*\*$/m);
+});
+
+test('Google Docs HTML export converts nested lists and links', () => {
+  const result = convert('Meeting notes.html', makeGoogleDocsHtml());
+
+  assert.match(result.markdown, /^# Meeting notes$/m);
+  assert.match(result.markdown, /Attendees: \*\*Ameen\*\*, Sara\./);
+  assert.match(result.markdown, /^- Confirm the budget$/m);
+  assert.match(result.markdown, /^ {2}- Check parking$/m);
+  assert.match(result.markdown, /\[Agenda]\(<https:\/\/www\.google\.com\/url\?q=https:\/\/example\.com\/agenda&sa=D>\)|\[Agenda]\(https:\/\/www\.google\.com\/url\?q=https:\/\/example\.com\/agenda&sa=D\)/);
+});
+
+test('Google Drive shortcut files explain how to download the real document', () => {
+  assert.throws(() => convert('Team Handbook.gdoc', makeGdocShortcut()), /Microsoft Word \(\.docx\)/);
+  assert.throws(() => convert('Budget.gsheet', makeGdocShortcut()), /Microsoft Excel \(\.xlsx\)/);
+  assert.throws(() => convert('Deck.gslides', makeGdocShortcut()), /Microsoft PowerPoint \(\.pptx\)/);
 });

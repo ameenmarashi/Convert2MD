@@ -45,9 +45,28 @@ export const SUPPORTED_EXTENSIONS = [
 
 const IMAGE_EXTENSIONS = new Set(['png', 'jpg', 'jpeg', 'gif', 'webp', 'bmp', 'svg', 'avif', 'ico', 'tif', 'tiff']);
 
+/**
+ * Google Drive shortcut files hold a link, not the document. Downloading a
+ * Google Doc as .docx/.xlsx/.pptx (or the OpenDocument equivalents) produces a
+ * real file, which the normal converters handle.
+ */
+const DRIVE_SHORTCUTS: Record<string, { app: string; download: string }> = {
+  gdoc: { app: 'Google Docs', download: 'Microsoft Word (.docx)' },
+  gsheet: { app: 'Google Sheets', download: 'Microsoft Excel (.xlsx)' },
+  gslides: { app: 'Google Slides', download: 'Microsoft PowerPoint (.pptx)' },
+  gdraw: { app: 'Google Drawings', download: 'PNG or SVG' },
+};
+
 export function detectFormat(file: SourceFile): FormatInfo {
   const bytes = file.bytes;
   const extension = (file.name.split('.').pop() ?? '').toLowerCase();
+
+  const shortcut = DRIVE_SHORTCUTS[extension];
+  if (shortcut) {
+    throw new ConversionError(
+      `A .${extension} file is only a link to a document stored in Google Drive, so there is nothing to convert. Open it in ${shortcut.app} and choose File → Download → ${shortcut.download}, then convert that file.`
+    );
+  }
 
   if (startsWith(bytes, [0x25, 0x50, 0x44, 0x46])) return { id: 'pdf', label: 'PDF' };
   if (startsWith(bytes, [0x7b, 0x5c, 0x72, 0x74, 0x66])) return { id: 'rtf', label: 'Rich Text (.rtf)' };

@@ -19,10 +19,66 @@ export function htmlStringToMarkdown(html, options) {
     return htmlToMarkdown(parseHtml(html), options);
 }
 export function htmlToMarkdown(root, options) {
-    const ctx = { ...options, listStack: [] };
+    const ctx = { ...options, listStack: [], classStyles: collectClassStyles(root) };
     const body = findBody(root) ?? root;
     const blocks = renderChildren(body, ctx);
     return normalizeMarkdown(blocks.join('\n\n'));
+}
+/**
+ * Word and Google Docs export emphasis as CSS classes on bare `<span>`s rather
+ * than `<b>`/`<i>`, so the stylesheet has to be read to keep it.
+ */
+function collectClassStyles(root) {
+    const styles = new Map();
+    for (const styleEl of descendants(root, 'style')) {
+        const css = textOf(styleEl).replace(/\/\*[\s\S]*?\*\//g, '');
+        for (const rule of css.matchAll(/([^{}]+)\{([^{}]*)\}/g)) {
+            const body = rule[2].toLowerCase();
+            const bold = /font-weight\s*:\s*(bold(er)?|[6-9]00)/.test(body);
+            const italic = /font-style\s*:\s*(italic|oblique)/.test(body);
+            const strike = /text-decoration[^;]*line-through/.test(body);
+            if (!bold && !italic && !strike)
+                continue;
+            for (const selector of rule[1].split(',')) {
+                const match = selector.trim().match(/^\.([\w-]+)$/);
+                if (!match)
+                    continue;
+                const existing = styles.get(match[1]) ?? { bold: false, italic: false, strike: false };
+                styles.set(match[1], {
+                    bold: existing.bold || bold,
+                    italic: existing.italic || italic,
+                    strike: existing.strike || strike,
+                });
+            }
+        }
+    }
+    return styles;
+}
+function styleForElement(el, ctx) {
+    const classes = (attr(el, 'class') ?? '').split(/\s+/).filter(Boolean);
+    const inline = (attr(el, 'style') ?? '').toLowerCase();
+    let bold = /font-weight\s*:\s*(bold(er)?|[6-9]00)/.test(inline);
+    let italic = /font-style\s*:\s*(italic|oblique)/.test(inline);
+    let strike = /text-decoration[^;]*line-through/.test(inline);
+    for (const name of classes) {
+        const style = ctx.classStyles.get(name);
+        if (!style)
+            continue;
+        bold = bold || style.bold;
+        italic = italic || style.italic;
+        strike = strike || style.strike;
+    }
+    return bold || italic || strike ? { bold, italic, strike } : null;
+}
+function applyStyle(text, style) {
+    let out = text;
+    if (style.strike)
+        out = wrap(out, '~~');
+    if (style.bold)
+        out = wrap(out, '**');
+    if (style.italic)
+        out = wrap(out, '*');
+    return out;
 }
 export function htmlTitle(root) {
     const title = descendants(root, 'title')[0];
@@ -331,11 +387,14 @@ function renderInline(node, ctx) {
             return `"${renderInlineChildren(node, ctx)}"`;
         case 'wbr':
             return '';
-        default:
+        default: {
             if (isBlock(node)) {
                 return renderBlock(node, ctx).join('\n\n');
             }
-            return renderInlineChildren(node, ctx);
+            const inner = renderInlineChildren(node, ctx);
+            const style = styleForElement(node, ctx);
+            return style ? applyStyle(inner, style) : inner;
+        }
     }
 }
 function renderAnchor(el, ctx) {

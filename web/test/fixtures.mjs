@@ -433,3 +433,177 @@ export function makeCsv() {
     'APAC;540;19,900',
   ].join('\n');
 }
+
+/* --------------------------------------------------- Google Drive exports */
+
+/**
+ * Mirrors the shape Google Docs produces on "Download → Microsoft Word":
+ * title-case style names, a `Normal` default, list numbering by numId, and no
+ * `w:tblHeader` on the first table row.
+ */
+export function makeGoogleDocsDocx() {
+  const document = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main"
+            xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships"
+            xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main"
+            xmlns:wp="http://schemas.openxmlformats.org/drawingml/2006/wordprocessingDrawing">
+  <w:body>
+    <w:p><w:pPr><w:pStyle w:val="Title"/></w:pPr><w:r><w:rPr/><w:t xml:space="preserve">Team Handbook</w:t></w:r></w:p>
+    <w:p><w:pPr><w:pStyle w:val="Heading1"/></w:pPr><w:r><w:t>Working hours</w:t></w:r></w:p>
+    <w:p><w:pPr><w:pStyle w:val="Normal"/></w:pPr>
+      <w:r><w:t xml:space="preserve">Core hours are </w:t></w:r>
+      <w:r><w:rPr><w:b w:val="1"/></w:rPr><w:t>10:00 to 16:00</w:t></w:r>
+      <w:r><w:t xml:space="preserve">, and the rest is flexible.</w:t></w:r>
+    </w:p>
+    <w:p><w:pPr><w:pStyle w:val="Normal"/><w:numPr><w:ilvl w:val="0"/><w:numId w:val="2"/></w:numPr></w:pPr><w:r><w:t>Stand-up at 10:15</w:t></w:r></w:p>
+    <w:p><w:pPr><w:pStyle w:val="Normal"/><w:numPr><w:ilvl w:val="1"/><w:numId w:val="2"/></w:numPr></w:pPr><w:r><w:t>Fifteen minutes, standing</w:t></w:r></w:p>
+    <w:p><w:pPr><w:pStyle w:val="Normal"/><w:numPr><w:ilvl w:val="0"/><w:numId w:val="2"/></w:numPr></w:pPr><w:r><w:t>Retro on Fridays</w:t></w:r></w:p>
+    <w:p><w:pPr><w:pStyle w:val="Heading2"/></w:pPr><w:r><w:t>Contacts</w:t></w:r></w:p>
+    <w:tbl>
+      <w:tblPr><w:tblStyle w:val="a"/></w:tblPr>
+      <w:tr>
+        <w:tc><w:p><w:pPr><w:pStyle w:val="Normal"/></w:pPr><w:r><w:t>Team</w:t></w:r></w:p></w:tc>
+        <w:tc><w:p><w:pPr><w:pStyle w:val="Normal"/></w:pPr><w:r><w:t>Channel</w:t></w:r></w:p></w:tc>
+      </w:tr>
+      <w:tr>
+        <w:tc><w:p><w:pPr><w:pStyle w:val="Normal"/></w:pPr><w:r><w:t>Platform</w:t></w:r></w:p></w:tc>
+        <w:tc><w:p><w:pPr><w:pStyle w:val="Normal"/></w:pPr><w:r><w:t>#platform</w:t></w:r></w:p></w:tc>
+      </w:tr>
+    </w:tbl>
+    <w:p><w:pPr><w:pStyle w:val="Normal"/></w:pPr>
+      <w:hyperlink r:id="rId4"><w:r><w:rPr><w:color w:val="1155cc"/><w:u w:val="single"/></w:rPr><w:t>Company wiki</w:t></w:r></w:hyperlink>
+    </w:p>
+  </w:body>
+</w:document>`;
+
+  const styles = `<?xml version="1.0"?>
+<w:styles xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main">
+  <w:style w:type="paragraph" w:styleId="Normal"><w:name w:val="Normal"/></w:style>
+  <w:style w:type="paragraph" w:styleId="Title"><w:name w:val="Title"/></w:style>
+  <w:style w:type="paragraph" w:styleId="Heading1"><w:name w:val="Heading 1"/></w:style>
+  <w:style w:type="paragraph" w:styleId="Heading2"><w:name w:val="Heading 2"/></w:style>
+</w:styles>`;
+
+  const numbering = `<?xml version="1.0"?>
+<w:numbering xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main">
+  <w:abstractNum w:abstractNumId="1">
+    <w:lvl w:ilvl="0"><w:numFmt w:val="bullet"/><w:lvlText w:val="●"/></w:lvl>
+    <w:lvl w:ilvl="1"><w:numFmt w:val="bullet"/><w:lvlText w:val="○"/></w:lvl>
+  </w:abstractNum>
+  <w:num w:numId="2"><w:abstractNumId w:val="1"/></w:num>
+</w:numbering>`;
+
+  const rels = `<?xml version="1.0"?>
+<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">
+  <Relationship Id="rId4" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/hyperlink" Target="https://wiki.example.com/" TargetMode="External"/>
+</Relationships>`;
+
+  return zip([
+    ['[Content_Types].xml', '<?xml version="1.0"?><Types/>'],
+    ['word/document.xml', document],
+    ['word/styles.xml', styles],
+    ['word/numbering.xml', numbering],
+    ['word/_rels/document.xml.rels', rels],
+  ]);
+}
+
+/**
+ * Google Sheets exports a single-sheet workbook as `xl/worksheets/sheet.xml`
+ * (no index) with `sheetId="0"`, which only resolves through the relationship.
+ */
+export function makeGoogleSheetsXlsx() {
+  const workbook = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<workbook xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main"
+          xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships">
+  <sheets><sheet name="Budget" sheetId="0" state="visible" r:id="rId3"/></sheets>
+</workbook>`;
+
+  const rels = `<?xml version="1.0"?>
+<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">
+  <Relationship Id="rId3" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/worksheet" Target="worksheets/sheet.xml"/>
+</Relationships>`;
+
+  const sheet = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main">
+  <sheetData>
+    <row r="1"><c r="A1" t="inlineStr"><is><t>Item</t></is></c><c r="B1" t="inlineStr"><is><t>Cost</t></is></c></row>
+    <row r="2"><c r="A2" t="inlineStr"><is><t>Hosting</t></is></c><c r="B2"><v>240</v></c></row>
+    <row r="3"><c r="A3" t="inlineStr"><is><t>Domains</t></is></c><c r="B3"><v>36</v></c></row>
+  </sheetData>
+</worksheet>`;
+
+  return zip([
+    ['xl/workbook.xml', workbook],
+    ['xl/_rels/workbook.xml.rels', rels],
+    ['xl/worksheets/sheet.xml', sheet],
+  ]);
+}
+
+/**
+ * Google Slides marks the title with `ctrTitle` and body placeholders by `idx`
+ * with no `type`, and writes explicit bullet characters per paragraph.
+ */
+export function makeGoogleSlidesPptx() {
+  const presentation = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<p:presentation xmlns:p="http://schemas.openxmlformats.org/presentationml/2006/main"
+                xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships">
+  <p:sldIdLst><p:sldId id="256" r:id="rId3"/></p:sldIdLst>
+</p:presentation>`;
+
+  const presentationRels = `<?xml version="1.0"?>
+<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">
+  <Relationship Id="rId3" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/slide" Target="slides/slide1.xml"/>
+</Relationships>`;
+
+  const slide = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<p:sld xmlns:p="http://schemas.openxmlformats.org/presentationml/2006/main"
+       xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main">
+  <p:cSld><p:spTree>
+    <p:sp>
+      <p:nvSpPr><p:cNvPr id="2" name="Google Shape;2;p"/><p:nvPr><p:ph type="ctrTitle"/></p:nvPr></p:nvSpPr>
+      <p:txBody><a:p><a:pPr indent="0" lvl="0" marL="0"/><a:r><a:rPr lang="en"/><a:t>Launch plan</a:t></a:r></a:p></p:txBody>
+    </p:sp>
+    <p:sp>
+      <p:nvSpPr><p:cNvPr id="3" name="Google Shape;3;p"/><p:nvPr><p:ph idx="1"/></p:nvPr></p:nvSpPr>
+      <p:txBody>
+        <a:p><a:pPr indent="-342900" lvl="0" marL="457200"><a:buChar char="●"/></a:pPr><a:r><a:t>Freeze scope</a:t></a:r></a:p>
+        <a:p><a:pPr indent="-342900" lvl="1" marL="914400"><a:buChar char="○"/></a:pPr><a:r><a:t>Except security fixes</a:t></a:r></a:p>
+        <a:p><a:pPr indent="-342900" lvl="0" marL="457200"><a:buChar char="●"/></a:pPr><a:r><a:rPr b="1"/><a:t>Ship on the 20th</a:t></a:r></a:p>
+      </p:txBody>
+    </p:sp>
+  </p:spTree></p:cSld>
+</p:sld>`;
+
+  return zip([
+    ['ppt/presentation.xml', presentation],
+    ['ppt/_rels/presentation.xml.rels', presentationRels],
+    ['ppt/slides/slide1.xml', slide],
+  ]);
+}
+
+/** The HTML Google Docs produces on "Download → Web page". */
+export function makeGoogleDocsHtml() {
+  return `<html><head><meta content="text/html; charset=UTF-8" http-equiv="content-type">
+<style type="text/css">.c1{font-weight:700}.c2{color:#1155cc;text-decoration:underline}</style>
+<title>Meeting notes</title></head>
+<body class="c4 doc-content">
+<h1 class="c3"><span class="c0">Meeting notes</span></h1>
+<p class="c2"><span>Attendees: </span><span class="c1">Ameen</span><span>, Sara.</span></p>
+<ul class="c5 lst-kix_list_1-0 start">
+  <li class="c6"><span>Confirm the budget</span></li>
+  <li class="c6"><span>Book the venue</span>
+    <ul class="c5 lst-kix_list_1-1"><li class="c6"><span>Check parking</span></li></ul>
+  </li>
+</ul>
+<p class="c2"><a class="c2" href="https://www.google.com/url?q=https://example.com/agenda&amp;sa=D">Agenda</a></p>
+</body></html>`;
+}
+
+/** A Drive shortcut file: JSON pointing at a document that lives online. */
+export function makeGdocShortcut() {
+  return JSON.stringify({
+    url: 'https://docs.google.com/open?id=1AbCdEfGhIjKlMnOpQrStUvWxYz',
+    doc_id: '1AbCdEfGhIjKlMnOpQrStUvWxYz',
+    email: 'ameen@example.com',
+  });
+}
