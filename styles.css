@@ -1736,3 +1736,127 @@ body.is-reading {
   0%, 100% { transform: scale(1); }
   50% { transform: scale(1.25); }
 }
+
+/* ----------------------------------------------------------------- library */
+
+/* The documents this device is holding. iOS gives a web app no folder to
+   browse, so this list is how you see your own files on an iPhone or iPad. */
+
+.library {
+  display: grid;
+  gap: 10px;
+}
+
+.library__bar {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.library__bar h2 {
+  font-size: 1.0625rem;
+}
+
+.library__note {
+  font-size: 0.6875rem;
+  letter-spacing: var(--tracking-wide);
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+
+.library__list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 8px;
+}
+
+.library__item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: var(--bg-elevated);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding-right: 8px;
+}
+
+.library__item:hover {
+  border-color: var(--accent);
+}
+
+.library__open {
+  appearance: none;
+  flex: 1;
+  min-width: 0;
+  display: grid;
+  gap: 2px;
+  text-align: left;
+  border: none;
+  background: none;
+  color: inherit;
+  font: inherit;
+  padding: 12px 14px;
+  min-height: var(--tap);
+  cursor: pointer;
+  border-radius: var(--radius);
+}
+
+.library__open:focus-visible {
+  outline: 3px solid var(--accent);
+  outline-offset: -3px;
+}
+
+.library__name {
+  font-weight: 600;
+  font-size: 0.9375rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.library__meta {
+  font-size: 0.75rem;
+  color: var(--text-muted);
+}
+
+.library__delete {
+  flex: none;
+  border-color: transparent;
+  background: none;
+  color: var(--text-muted);
+}
+
+.library__delete:hover {
+  color: var(--danger);
+  border-color: var(--danger);
+}
+
+/* The title doubles as the rename field — on iOS there is no folder to go and
+   rename a document in, so it has to be renameable where it is open. */
+.reader__rename {
+  appearance: none;
+  width: 100%;
+  max-width: 22rem;
+  border: 1px solid transparent;
+  border-radius: var(--radius-sm);
+  background: none;
+  color: var(--text);
+  font: inherit;
+  font-size: 0.9375rem;
+  font-weight: 700;
+  padding: 2px 6px;
+  margin-left: -6px;
+}
+
+.reader__rename:hover {
+  border-color: var(--border);
+}
+
+.reader__rename:focus {
+  outline: none;
+  border-color: var(--accent);
+  background: var(--bg-elevated);
+}
