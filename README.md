@@ -33,14 +33,15 @@ fix (re-save as the modern format) rather than a generic failure.
 
 **https://ameenmarashi.github.io/Convert2MD/**
 
-Published from `web/public` by `.github/workflows/deploy-pages.yml` on every
-push that touches `web/`. The workflow compiles the TypeScript, runs the test
-suite, and only then deploys — a failing test blocks the release.
+Served from the `gh-pages` branch, which holds only the built site. Pushing
+that branch is also what enabled Pages in the first place — the Actions token is
+refused on the "create Pages site" API, so the usual `deploy-pages` route would
+have needed a repository setting changed by hand.
 
-**One-time setup:** in *Settings → Pages → Build and deployment*, set **Source**
-to **GitHub Actions**. The Actions token cannot create the Pages site itself, so
-this switch has to be flipped once; after that every push deploys on its own.
-Re-run the latest workflow from the Actions tab to publish immediately.
+`.github/workflows/deploy-pages.yml` rebuilds `web/public` from source on every
+push that touches `web/`, runs the test suite, and syncs the result onto
+`gh-pages`; a failing test blocks the release. Do not edit `gh-pages` directly —
+it is regenerated.
 
 GitHub Pages serves this at a sub-path, which the app is built for: every URL is
 relative, the service worker scopes itself to `/Convert2MD/`, and the manifest

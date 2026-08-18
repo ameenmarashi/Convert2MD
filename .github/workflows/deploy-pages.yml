@@ -1,11 +1,12 @@
-name: Deploy PWA to GitHub Pages
+name: Publish PWA to GitHub Pages
 
-# Publishes web/public to https://ameenmarashi.github.io/Convert2MD/.
+# The site is served from the `gh-pages` branch: pushing that branch is what
+# switched Pages on in the first place, without needing a repository setting
+# changed by hand (the Actions token is refused on the "create Pages site" API).
 #
-# One-time setup: Settings → Pages → Build and deployment → Source →
-# "GitHub Actions". The Actions token is not allowed to create the Pages site
-# itself ("Resource not accessible by integration"), so that switch has to be
-# flipped once by a repository admin. Every push afterwards deploys on its own.
+# This job rebuilds web/public from source, runs the tests, and syncs the result
+# onto gh-pages. GitHub's own "pages build and deployment" run then publishes it
+# to https://ameenmarashi.github.io/Convert2MD/.
 
 on:
   push:
@@ -18,20 +19,19 @@ on:
   workflow_dispatch:
 
 permissions:
-  contents: read
-  pages: write
-  id-token: write
+  contents: write
 
-# Let a running deployment finish rather than cancelling it half-published.
 concurrency:
-  group: pages
+  group: publish-pages
   cancel-in-progress: false
 
 jobs:
-  build:
+  publish:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
       - uses: actions/setup-node@v4
         with:
@@ -51,20 +51,21 @@ jobs:
         run: npm test
         working-directory: web
 
-      # No `configure-pages` step: it exists to hand a base path to site
-      # generators, and every URL in this app is already relative, so the
-      # artifact is correct whether it is served from a domain root or from
-      # /Convert2MD/.
-      - uses: actions/upload-pages-artifact@v3
-        with:
-          path: web/public
-
-  deploy:
-    needs: build
-    runs-on: ubuntu-latest
-    environment:
-      name: github-pages
-      url: ${{ steps.deployment.outputs.page_url }}
-    steps:
-      - id: deployment
-        uses: actions/deploy-pages@v4
+      - name: Sync web/public onto the gh-pages branch
+        run: |
+          set -euo pipefail
+          touch web/public/.nojekyll
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git fetch origin gh-pages
+          git worktree add /tmp/gh-pages gh-pages
+          rsync -a --delete --exclude .git web/public/ /tmp/gh-pages/
+          cd /tmp/gh-pages
+          git add -A
+          # Nothing to publish when the built output is unchanged.
+          if git diff --cached --quiet; then
+            echo "gh-pages already matches this build."
+          else
+            git commit -m "Publish MD Converter PWA from ${GITHUB_SHA::7}"
+            git push origin gh-pages
+          fi
