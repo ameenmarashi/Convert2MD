@@ -51,8 +51,10 @@ jobs:
         run: npm test
         working-directory: web
 
-      - uses: actions/configure-pages@v5
-
+      # No `configure-pages` step: it exists to hand a base path to site
+      # generators, and every URL in this app is already relative, so the
+      # artifact is correct whether it is served from a domain root or from
+      # /Convert2MD/.
       - uses: actions/upload-pages-artifact@v3
         with:
           path: web/public
