@@ -128,7 +128,7 @@
       <button type="button" id="open-md-button" class="button">Open a .md file</button>
       <button type="button" id="paste-button" class="button button--ghost">Paste from clipboard</button>
     </div>
-    <p class="dropzone__note">Nothing is uploaded. Every conversion runs in this browser tab.</p>
+    <p class="dropzone__note dropzone__note--privacy">Nothing is uploaded, collected, or used to train any AI. Every conversion runs in this tab. <a href="#privacy">How that works →</a></p>
     <p class="dropzone__note">Already have Markdown — from ChatGPT, Claude or anywhere else? <strong>Open a .md file</strong> reads it as a formatted document.</p>
   </section>
 
@@ -142,8 +142,9 @@
         <summary class="nutshell__summary">Why Markdown, in a nutshell</summary>
         <div class="nutshell__body">
           <p>Markdown is plain text with a handful of marks for structure — <code>#</code> for a heading, <code>-</code> for a list item. That is the whole format.</p>
-          <p>It outlives the software that wrote it, keeps structure without dragging fonts and page margins along, and is the format AI tools, search indexes and site generators read directly. One small file, no container, no hidden revision history.</p>
-          <p><a href="#why-markdown">The longer version →</a></p>
+          <p>It outlives the software that wrote it, and keeps structure without dragging fonts and page margins along. One small file, no container, no hidden revision history.</p>
+          <p>It is also the format AI tools already speak: models write their answers in Markdown and read it back with the structure intact, so a converted document arrives as headings and tables rather than one flat run of words — and you can see everything you are about to paste.</p>
+          <p><a href="#why-markdown">Why Markdown and AI go together →</a><br><a href="#privacy">Privacy: nothing is collected →</a></p>
         </div>
       </details>
 
@@ -243,94 +244,170 @@
     <ul id="results-list" class="results__list"></ul>
   </section>
 
-  <section class="explainer" id="why-markdown" aria-labelledby="why-markdown-title">
-    <h2 id="why-markdown-title">Why Markdown, in a nutshell</h2>
-    <p class="explainer__lede">Markdown is plain text with a handful of marks for structure — <code>#</code> for a heading, <code>-</code> for a list item, <code>|</code> for a table. That is the whole format, and it is why it lasts.</p>
+  <section class="learn" aria-labelledby="learn-title">
+    <h2 id="learn-title" class="learn__title">Good to know</h2>
 
-    <ol class="reasons">
-      <li>
-        <h3>It outlives the software that wrote it</h3>
-        <p>A <code>.docx</code> needs Word. A <code>.md</code> file opens in any text editor, on any device, in twenty years.</p>
-      </li>
-      <li>
-        <h3>Structure survives; styling gets out of the way</h3>
-        <p>Headings, lists, tables and links are kept as meaning. Fonts, margins and page breaks — which only ever served the printed page — are dropped.</p>
-      </li>
-      <li>
-        <h3>It is what AI tools read best</h3>
-        <p>Language models, retrieval pipelines, static site generators and note apps take Markdown directly, with no conversion layer in between.</p>
-      </li>
-      <li>
-        <h3>It is searchable, diffable, versionable</h3>
-        <p>Plain text means <code>grep</code> finds it and Git tracks every change line by line — so you can see exactly what moved between two drafts.</p>
-      </li>
-      <li>
-        <h3>It is one small file</h3>
-        <p>No zip container, no embedded metadata, no tracked changes or comment threads travelling silently with the document.</p>
-      </li>
-    </ol>
+    <details class="panel disclosure" id="privacy">
+      <summary class="panel__summary">
+        <span>Privacy — your files are never collected</span>
+        <span class="panel__chevron" aria-hidden="true">▾</span>
+      </summary>
+      <div class="panel__body">
+        <p class="disclosure__lede">Nothing you open here is uploaded, stored, logged or shared. Not with a server, not with an AI company, not with the developer.</p>
 
-    <p class="explainer__close">Converting to Markdown keeps the content and drops everything that was only there to serve the page.</p>
-  </section>
+        <ul class="promises">
+          <li>
+            <strong>Your documents are never uploaded.</strong>
+            They are read by this tab, converted by code running on your own device, and gone the moment you close it. There is no server to send them to.
+          </li>
+          <li>
+            <strong>They are never used to train or prompt any AI.</strong>
+            No model sees them. Nothing is sent to OpenAI, Anthropic, Google or anyone else. The conversion is ordinary parsing code, not a language model.
+          </li>
+          <li>
+            <strong>The developer cannot see what you convert.</strong>
+            Not by policy — by construction. There is no account, no database and no log, so there is nothing to look at even in principle.
+          </li>
+          <li>
+            <strong>No analytics, no cookies, no tracking.</strong>
+            The app loads no third-party scripts and makes no network requests of its own. The typeface is bundled with it rather than fetched from a font service.
+          </li>
+          <li>
+            <strong>Only your settings are stored.</strong>
+            Your conversion preferences, theme and reading size are kept in this browser&#8217;s local storage. Document content never is.
+          </li>
+        </ul>
 
-  <section class="about" id="about" aria-labelledby="about-title">
-    <h2 id="about-title">What this app does</h2>
-    <p class="about__lede">Drop a document in; get a Markdown file out. Every conversion runs on this device — there is no server, nothing is uploaded, and no account is needed.</p>
+        <p class="disclosure__note"><strong>The one exception, stated plainly:</strong> if a document you convert links to an image hosted on the web, the preview will load that image from wherever it lives, exactly as any viewer would. Set <em>Images</em> to “Leave out entirely” in Conversion settings if you would rather it never did.</p>
 
-    <ol class="steps">
-      <li>
-        <span class="steps__number" aria-hidden="true">1</span>
-        <h3>Reads the real file</h3>
-        <p>It opens the actual container — the OOXML parts inside a <code>.docx</code>, the object graph inside a PDF — rather than scraping visible text.</p>
-      </li>
-      <li>
-        <span class="steps__number" aria-hidden="true">2</span>
-        <h3>Recovers the structure</h3>
-        <p>Headings, ordered and bulleted lists, tables, links, footnotes, speaker notes and images are identified. In PDFs, which carry no structure at all, headings and paragraphs are inferred from font size and layout, and repeating headers and footers are dropped.</p>
-      </li>
-      <li>
-        <span class="steps__number" aria-hidden="true">3</span>
-        <h3>Writes clean Markdown</h3>
-        <p>Preview it, copy it, download it, or export everything at once as a <code>.zip</code>. Optional YAML front matter records the title, author and source file.</p>
-      </li>
-    </ol>
+        <p class="disclosure__note">You can check all of this: turn off the network — after installing the app — and convert a file. It still works, because there was never anything on the other end.</p>
+      </div>
+    </details>
 
-    <h3 class="about__subhead">What you can convert</h3>
-    <ul class="formats">
-      <li>PDF</li>
-      <li>Word · .docx</li>
-      <li>Excel · .xlsx</li>
-      <li>PowerPoint · .pptx</li>
-      <li>Google Docs, Sheets &amp; Slides exports</li>
-      <li>OpenDocument · .odt .ods .odp</li>
-      <li>EPUB</li>
-      <li>RTF</li>
-      <li>HTML</li>
-      <li>Email · .eml</li>
-      <li>CSV &amp; TSV</li>
-      <li>Text, Markdown, JSON, YAML</li>
-      <li>Subtitles · .srt .vtt</li>
-      <li>Source code</li>
-      <li>Images</li>
-    </ul>
+    <details class="panel disclosure" id="why-markdown">
+      <summary class="panel__summary">
+        <span>Why Markdown, and why AI tools speak it</span>
+        <span class="panel__chevron" aria-hidden="true">▾</span>
+      </summary>
+      <div class="panel__body">
+        <p class="disclosure__lede">Markdown is plain text with a handful of marks for structure — <code>#</code> for a heading, <code>-</code> for a list item, <code>|</code> for a table. That is the whole format, and it is why it lasts.</p>
 
-    <div class="about__grid">
-      <article>
-        <h3>Nothing leaves the device</h3>
-        <p>There is no server and no upload. Files are read in this tab, converted here, and forgotten when you close it — which is what makes it safe for patient records, contracts and anything else confidential.</p>
-      </article>
-      <article>
-        <h3>Installed means offline</h3>
-        <p>Add it to your Home Screen or Dock and the whole app — including the PDF and Word engines — is stored on the device. It keeps working on a plane, in a basement, with the network off.</p>
-      </article>
-      <article>
-        <h3>Built to read documents properly</h3>
-        <p>Every parser is written into the app itself: no libraries fetched at runtime, nothing to load before it can work. That is what lets it run with no connection at all.</p>
-      </article>
-    </div>
+        <ol class="reasons">
+          <li>
+            <h3>It outlives the software that wrote it</h3>
+            <p>A <code>.docx</code> needs Word. A <code>.md</code> file opens in any text editor, on any device, in twenty years.</p>
+          </li>
+          <li>
+            <h3>Structure survives; styling gets out of the way</h3>
+            <p>Headings, lists, tables and links are kept as meaning. Fonts, margins and page breaks — which only ever served the printed page — are dropped.</p>
+          </li>
+          <li>
+            <h3>It is searchable, diffable, versionable</h3>
+            <p>Plain text means <code>grep</code> finds it and Git tracks every change line by line — so you can see exactly what moved between two drafts.</p>
+          </li>
+          <li>
+            <h3>It is one small file</h3>
+            <p>No zip container, no embedded metadata, no tracked changes or comment threads travelling silently with the document.</p>
+          </li>
+        </ol>
 
-    <h3 class="about__subhead">Install it</h3>
-    <p class="about__install"><strong>iPhone and iPad:</strong> Share → Add to Home Screen. <strong>macOS Safari:</strong> File → Add to Dock. <strong>Chrome and Edge:</strong> the install icon in the address bar.</p>
+        <h3 class="disclosure__subhead">Markdown and AI</h3>
+        <p>Markdown has quietly become the language models and people share. It is worth knowing why.</p>
+
+        <ol class="reasons">
+          <li>
+            <h3>It is what the models already write</h3>
+            <p>Ask ChatGPT, Claude or Gemini for anything structured and the answer comes back as Markdown — headings, bullets, tables, fenced code. Saving that reply as a <code>.md</code> file keeps it exactly as written, which is why so many people end up with a folder of them.</p>
+          </li>
+          <li>
+            <h3>It is what they read best</h3>
+            <p>A model sees your document as text. Hand it a PDF and the headings, columns and tables usually arrive as one flat run of words. Convert first and the structure arrives intact, so the model can tell a heading from a sentence and a table row from a paragraph.</p>
+          </li>
+          <li>
+            <h3>It spends your context window on content</h3>
+            <p>Word and HTML carry far more markup than text — tags, styles and identifiers the model must read and pay for. Markdown adds a handful of characters per heading. More of the window goes to what the document actually says.</p>
+          </li>
+          <li>
+            <h3>It chunks along meaning</h3>
+            <p>Retrieval pipelines split documents before searching them. With Markdown headings the splits fall at section boundaries instead of arbitrary page breaks, so a retrieved passage is a whole idea rather than half of two.</p>
+          </li>
+          <li>
+            <h3>You can see everything you are about to send</h3>
+            <p>An office file carries things you cannot see: tracked changes, resolved comments, author names, revision history, hidden sheets. Paste one into a chat and all of it goes along. A Markdown file is exactly what is on the screen — which matters most when the document was confidential to begin with.</p>
+          </li>
+        </ol>
+
+        <p class="disclosure__close">Converting to Markdown keeps the content and drops everything that was only there to serve the page — or that you never meant to send.</p>
+      </div>
+    </details>
+
+    <details class="panel disclosure" id="about">
+      <summary class="panel__summary">
+        <span>What this app does</span>
+        <span class="panel__chevron" aria-hidden="true">▾</span>
+      </summary>
+      <div class="panel__body">
+        <p class="disclosure__lede">Drop a document in; get a Markdown file out. Already have Markdown? Open it and read it as a formatted document. Everything runs on this device.</p>
+
+        <ol class="steps">
+          <li>
+            <span class="steps__number" aria-hidden="true">1</span>
+            <h3>Reads the real file</h3>
+            <p>It opens the actual container — the OOXML parts inside a <code>.docx</code>, the object graph inside a PDF — rather than scraping visible text.</p>
+          </li>
+          <li>
+            <span class="steps__number" aria-hidden="true">2</span>
+            <h3>Recovers the structure</h3>
+            <p>Headings, ordered and bulleted lists, tables, links, footnotes, speaker notes and images are identified. In PDFs, which carry no structure at all, headings and paragraphs are inferred from font size and layout, and repeating headers and footers are dropped.</p>
+          </li>
+          <li>
+            <span class="steps__number" aria-hidden="true">3</span>
+            <h3>Writes clean Markdown</h3>
+            <p>Preview it, copy it, download it, or export everything at once as a <code>.zip</code>. Optional YAML front matter records the title, author and source file.</p>
+          </li>
+        </ol>
+
+        <h3 class="disclosure__subhead">What you can convert</h3>
+        <ul class="formats">
+          <li>PDF</li>
+          <li>Word · .docx</li>
+          <li>Excel · .xlsx</li>
+          <li>PowerPoint · .pptx</li>
+          <li>Google Docs, Sheets &amp; Slides exports</li>
+          <li>OpenDocument · .odt .ods .odp</li>
+          <li>EPUB</li>
+          <li>RTF</li>
+          <li>HTML</li>
+          <li>Email · .eml</li>
+          <li>CSV &amp; TSV</li>
+          <li>Text, Markdown, JSON, YAML</li>
+          <li>Subtitles · .srt .vtt</li>
+          <li>Source code</li>
+          <li>Images</li>
+        </ul>
+
+        <h3 class="disclosure__subhead">Reading Markdown</h3>
+        <p><strong>Open a .md file</strong> shows it as a formatted document — a contents list, adjustable text size, and a print layout so “Save as PDF” gives you something worth sending on. A <code>.md</code> you drop or open from elsewhere on your device goes there too, since it is already the finished document.</p>
+
+        <div class="about__grid">
+          <article>
+            <h3>Nothing leaves the device</h3>
+            <p>There is no server and no upload — which is what makes it safe for patient records, contracts and anything else confidential.</p>
+          </article>
+          <article>
+            <h3>Installed means offline</h3>
+            <p>Add it to your Home Screen or Dock and the whole app — including the PDF and Word engines — is stored on the device. It keeps working on a plane, in a basement, with the network off.</p>
+          </article>
+          <article>
+            <h3>Built to read documents properly</h3>
+            <p>Every parser is written into the app itself: no libraries fetched at runtime, nothing to load before it can work. That is what lets it run with no connection at all.</p>
+          </article>
+        </div>
+
+        <h3 class="disclosure__subhead">Install it</h3>
+        <p class="about__install"><strong>iPhone and iPad:</strong> Share → Add to Home Screen. <strong>macOS Safari:</strong> File → Add to Dock. <strong>Chrome and Edge:</strong> the install icon in the address bar.</p>
+      </div>
+    </details>
   </section>
 </main>
 

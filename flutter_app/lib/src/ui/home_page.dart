@@ -87,7 +87,7 @@ class _HomePageState extends ConsumerState<HomePage> {
             constraints: const BoxConstraints(maxWidth: 900),
             child: ListView.builder(
               padding: EdgeInsets.fromLTRB(wide ? 24 : 12, 12, wide ? 24 : 12, 32),
-              // Header, one card per conversion, then the two explainers.
+              // Header, one card per conversion, then the collapsed explainers.
               itemCount: entries.length + 2,
               itemBuilder: (context, index) {
                 if (index == 0) {
@@ -101,14 +101,9 @@ class _HomePageState extends ConsumerState<HomePage> {
                   );
                 }
                 if (index == entries.length + 1) {
-                  return const Column(
-                    crossAxisAlignment: CrossAxisAlignment.stretch,
-                    children: [
-                      SizedBox(height: 8),
-                      WhyMarkdownCard(expanded: true),
-                      SizedBox(height: 12),
-                      AboutSection(),
-                    ],
+                  return const Padding(
+                    padding: EdgeInsets.only(top: 8),
+                    child: LearnMoreSection(),
                   );
                 }
                 return Padding(
@@ -210,7 +205,7 @@ class PickerCard extends StatelessWidget {
             ),
             const SizedBox(height: 6),
             Text(
-              l10n.privacyNote,
+              l10n.privacyShort,
               textAlign: TextAlign.center,
               style: Theme.of(context)
                   .textTheme

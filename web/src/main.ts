@@ -68,6 +68,7 @@ function init(): void {
   bindSettings();
   bindIntake();
   bindGlobalActions();
+  bindDisclosures();
   registerServiceWorker();
   watchConnectivity();
   handleLaunchFiles();
@@ -154,6 +155,31 @@ function bindGlobalActions(): void {
     dom.installButton.hidden = true;
     toast('Installed. It now works offline.');
   });
+}
+
+/**
+ * The explainers are collapsed so the app opens on the work, not on prose.
+ * Following a link to one has to open it — browsers only auto-expand a closed
+ * `<details>` for a fragment in the newest versions, and a link that scrolls to
+ * a closed summary looks broken everywhere else.
+ */
+function bindDisclosures(): void {
+  const reveal = (hash: string): void => {
+    if (!hash.startsWith('#')) return;
+    const target = document.querySelector(hash);
+    if (!(target instanceof HTMLDetailsElement)) return;
+    target.open = true;
+    // Let the panel lay out before scrolling to where it ended up.
+    requestAnimationFrame(() => target.scrollIntoView({ behavior: 'smooth', block: 'start' }));
+  };
+
+  document.addEventListener('click', (event) => {
+    const anchor = (event.target as Element | null)?.closest?.('a[href^="#"]');
+    if (anchor instanceof HTMLAnchorElement) reveal(anchor.hash);
+  });
+
+  window.addEventListener('hashchange', () => reveal(window.location.hash));
+  if (window.location.hash) reveal(window.location.hash);
 }
 
 function bindSettings(): void {

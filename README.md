@@ -30,6 +30,31 @@ from one design:
 Legacy binary `.doc`/`.xls`/`.ppt` are detected and answered with the one-line
 fix (re-save as the modern format) rather than a generic failure.
 
+## Privacy
+
+Nothing you open is uploaded, stored, logged or shared — not with a server, not
+with an AI company, not with the developer. These are properties of the build,
+not promises:
+
+- **No upload.** Files are read and converted by code running on your device.
+  There is no server to send them to.
+- **No AI.** Nothing is sent to any model, for training, context or anything
+  else. The conversion is ordinary parsing code — every format has a parser
+  written in-tree.
+- **Nothing to look at.** No account, no database, no log. The developer cannot
+  see what you convert even in principle.
+- **No analytics, cookies or third-party scripts.** The app opens no network
+  connection of its own; the typeface is bundled rather than fetched.
+- **Only settings persist.** Preferences, theme and reading size are kept
+  locally. Document content never is.
+
+The one exception, stated in the app as well: if a document links to an image
+hosted on the web, the preview loads that image from wherever it lives, as any
+viewer would. Setting *Images* to "Leave out entirely" prevents it.
+
+You can verify the whole claim: install the app, turn off the network, and
+convert a file.
+
 ## Reading Markdown
 
 A `.md` file is already the finished document, so there is nothing to convert.
@@ -41,6 +66,14 @@ It is the answer to the pile of `.md` files that AI tools hand back.
 Markdown that arrives any other way — dropped on the window, picked from the
 file dialog, or handed over by the operating system — goes to the reader too;
 everything else goes to the converter.
+
+## Keeping the UI clean
+
+All the explanatory material — the privacy notice, why Markdown and AI go
+together, what the app does — is collapsed behind a summary, so the app opens on
+the work and nothing else. Links to a panel expand it rather than scrolling to a
+closed row. Both apps do this the same way: `<details class="panel">` in the PWA,
+`ExpansionTile` in the Flutter app.
 
 ## Open with
 

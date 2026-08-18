@@ -1270,3 +1270,116 @@ body.is-reading {
     padding-top: 16px;
   }
 }
+
+/* ------------------------------------------------------------- disclosures */
+
+/* Everything explanatory sits behind a summary the user taps, so the working
+   surface — drop, convert, read — is all that shows on arrival. */
+
+.learn {
+  display: grid;
+  gap: 10px;
+}
+
+.learn__title {
+  font-size: 0.6875rem;
+  font-weight: 600;
+  letter-spacing: var(--tracking-wide);
+  text-transform: uppercase;
+  color: var(--text-muted);
+  margin: 8px 0 2px;
+}
+
+.disclosure[open] .panel__chevron {
+  transform: rotate(180deg);
+}
+
+.disclosure__lede {
+  margin-top: 0;
+  font-size: 0.9375rem;
+}
+
+.disclosure__subhead {
+  font-size: 0.6875rem;
+  font-weight: 600;
+  letter-spacing: var(--tracking-wide);
+  text-transform: uppercase;
+  color: var(--text-muted);
+  margin: 28px 0 10px;
+}
+
+.disclosure__note {
+  font-size: 0.8125rem;
+  color: var(--text-muted);
+}
+
+.disclosure__close {
+  margin-bottom: 0;
+  font-weight: 600;
+}
+
+/* The privacy promises: one claim per row, the claim itself in the accent. */
+.promises {
+  list-style: none;
+  margin: 18px 0;
+  padding: 0;
+  display: grid;
+  gap: 16px;
+}
+
+.promises li {
+  padding-left: 26px;
+  position: relative;
+  font-size: 0.875rem;
+  color: var(--text-muted);
+}
+
+.promises li::before {
+  content: "✓";
+  position: absolute;
+  left: 0;
+  top: -1px;
+  color: var(--accent);
+  font-weight: 700;
+}
+
+.promises strong {
+  display: block;
+  color: var(--text);
+  font-size: 0.9375rem;
+  margin-bottom: 2px;
+}
+
+.dropzone__note--privacy {
+  color: var(--text);
+}
+
+.dropzone__note--privacy a {
+  white-space: nowrap;
+}
+
+/* A panel opened by following a link to it, so the target is not a blank row. */
+.disclosure:target {
+  border-color: var(--accent);
+}
+
+.disclosure {
+  /* The app bar is sticky, so scrolling a panel to the top would tuck its own
+     summary underneath it. */
+  scroll-margin-top: calc(84px + var(--safe-top));
+}
+
+.disclosure > .panel__body {
+  display: block;
+  padding: 14px 20px 22px;
+  /* Prose, not a settings grid: one column at a measure that reads. */
+  max-width: 74ch;
+}
+
+.disclosure > .panel__body > :first-child {
+  margin-top: 0;
+}
+
+.disclosure > .panel__body > :last-child {
+  margin-bottom: 0;
+}
