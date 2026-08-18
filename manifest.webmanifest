@@ -1,0 +1,74 @@
+{
+  "name": "MD Converter — documents to Markdown",
+  "short_name": "MD Converter",
+  "description": "Convert PDF, Word, Excel, PowerPoint, OpenDocument, EPUB, RTF, HTML, email, CSV and text files to Markdown. Runs entirely on your device, online or off.",
+  "id": "md-converter",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "display_override": ["window-controls-overlay", "standalone", "minimal-ui"],
+  "orientation": "any",
+  "background_color": "#f5f6fb",
+  "theme_color": "#4f46e5",
+  "lang": "en",
+  "dir": "ltr",
+  "categories": ["productivity", "utilities"],
+  "icons": [
+    { "src": "icons/icon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any" },
+    { "src": "icons/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "icons/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
+    { "src": "icons/maskable-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" },
+    { "src": "icons/apple-touch-icon.png", "sizes": "180x180", "type": "image/png", "purpose": "any" }
+  ],
+  "share_target": {
+    "action": "./share-target",
+    "method": "POST",
+    "enctype": "multipart/form-data",
+    "params": {
+      "title": "title",
+      "text": "text",
+      "url": "url",
+      "files": [
+        {
+          "name": "files",
+          "accept": [
+            "application/pdf",
+            "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+            "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+            "application/vnd.openxmlformats-officedocument.presentationml.presentation",
+            "application/vnd.oasis.opendocument.text",
+            "application/vnd.oasis.opendocument.spreadsheet",
+            "application/vnd.oasis.opendocument.presentation",
+            "application/epub+zip",
+            "application/rtf",
+            "text/*",
+            "image/*"
+          ]
+        }
+      ]
+    }
+  },
+  "file_handlers": [
+    {
+      "action": "./",
+      "accept": {
+        "application/pdf": [".pdf"],
+        "application/vnd.openxmlformats-officedocument.wordprocessingml.document": [".docx"],
+        "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet": [".xlsx"],
+        "application/vnd.openxmlformats-officedocument.presentationml.presentation": [".pptx"],
+        "application/vnd.oasis.opendocument.text": [".odt"],
+        "application/vnd.oasis.opendocument.spreadsheet": [".ods"],
+        "application/vnd.oasis.opendocument.presentation": [".odp"],
+        "application/epub+zip": [".epub"],
+        "application/rtf": [".rtf"],
+        "text/html": [".html", ".htm"],
+        "text/csv": [".csv", ".tsv"],
+        "text/plain": [".txt", ".md", ".json", ".yaml", ".yml", ".srt", ".vtt"],
+        "message/rfc822": [".eml"]
+      },
+      "launch_type": "single-client"
+    }
+  ],
+  "launch_handler": { "client_mode": "focus-existing" },
+  "prefer_related_applications": false
+}
