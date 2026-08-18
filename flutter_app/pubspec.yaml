@@ -50,6 +50,20 @@ flutter:
   generate: true
   assets:
     - assets/branding/
+  # IBM Plex Mono, bundled so the native apps match the PWA and the rest of the
+  # Rx Suite family without a network fetch. Arabic falls back to the platform
+  # font, which IBM Plex Mono does not cover.
+  fonts:
+    - family: IBM Plex Mono
+      fonts:
+        - asset: assets/fonts/IBMPlexMono-Regular.ttf
+          weight: 400
+        - asset: assets/fonts/IBMPlexMono-Medium.ttf
+          weight: 500
+        - asset: assets/fonts/IBMPlexMono-SemiBold.ttf
+          weight: 600
+        - asset: assets/fonts/IBMPlexMono-Bold.ttf
+          weight: 700
 
 # Both blocks below take their colours from ../brand.json. Regenerate the source
 # images with `npm --prefix ../web run icons`, then:
@@ -67,14 +81,14 @@ flutter_launcher_icons:
   adaptive_icon_foreground: assets/branding/icon-foreground-1024.png
 
 flutter_native_splash:
-  color: "#f5f6fb"
-  color_dark: "#0b1020"
+  color: "#e9f4f3"
+  color_dark: "#0e1b28"
   image: assets/branding/splash-logo.png
   image_dark: assets/branding/splash-logo.png
   android: true
   ios: true
   android_12:
     image: assets/branding/splash-logo.png
-    color: "#f5f6fb"
-    color_dark: "#0b1020"
+    color: "#e9f4f3"
+    color_dark: "#0e1b28"
   fullscreen: false

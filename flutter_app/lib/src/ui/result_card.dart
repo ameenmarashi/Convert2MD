@@ -159,7 +159,9 @@ class _SourceView extends StatelessWidget {
         padding: const EdgeInsets.all(16),
         child: SelectableText(
           markdown,
-          style: const TextStyle(fontFamily: 'monospace', fontSize: 12.5, height: 1.45),
+          // The whole app is already set in IBM Plex Mono; the preview only
+          // needs the tighter size the Markdown source reads best at.
+          style: const TextStyle(fontSize: 12.5, height: 1.45),
         ),
       ),
     );

@@ -36,6 +36,15 @@ function hexToRgb(hex) {
   ];
 }
 
+const SQUARE_TERMINALS = brand.terminals === 'square';
+
+/** Draws a stroke with the terminal style the brand calls for. */
+function insideStroke(x, y, ax, ay, bx, by, halfWidth) {
+  return SQUARE_TERMINALS
+    ? insideBar(x, y, ax, ay, bx, by, halfWidth)
+    : insideCapsule(x, y, ax, ay, bx, by, halfWidth);
+}
+
 const GRADIENT_START = hexToRgb(brand.gradientStart);
 const GRADIENT_END = hexToRgb(brand.gradientEnd);
 const ON_GRADIENT = hexToRgb(brand.onGradient);
@@ -48,6 +57,19 @@ function insideRoundRect(x, y, x0, y0, x1, y1, r) {
   const cx = Math.min(Math.max(x, x0 + r), x1 - r);
   const cy = Math.min(Math.max(y, y0 + r), y1 - r);
   return (x - cx) ** 2 + (y - cy) ** 2 <= r * r;
+}
+
+/** A stroke with square ends, for the monospace-slab feel of the Rx Suite face. */
+function insideBar(x, y, ax, ay, bx, by, halfWidth) {
+  const dx = bx - ax;
+  const dy = by - ay;
+  const length = Math.hypot(dx, dy);
+  if (length === 0) return false;
+  const ux = dx / length;
+  const uy = dy / length;
+  const along = (x - ax) * ux + (y - ay) * uy;
+  const across = -(x - ax) * uy + (y - ay) * ux;
+  return along >= -0.0001 && along <= length && Math.abs(across) <= halfWidth;
 }
 
 function insideCapsule(x, y, ax, ay, bx, by, halfWidth) {
@@ -75,9 +97,9 @@ function insideMonogram(x, y) {
   const top = (DESIGN - capHeight) / 2;
   const bottom = top + capHeight;
 
-  const mWidth = capHeight * 0.92;
-  const dWidth = capHeight * 0.78;
-  const gap = stroke * 0.72;
+  const mWidth = capHeight * 0.86;
+  const dWidth = capHeight * 0.72;
+  const gap = stroke * 1.3;
   const totalWidth = mWidth + gap + dWidth;
   const left = (DESIGN - totalWidth) / 2;
 
@@ -87,10 +109,28 @@ function insideMonogram(x, y) {
   const mMiddle = (mLeft + mRight) / 2;
   const vee = top + capHeight * 0.62;
 
-  if (insideCapsule(x, y, mLeft, bottom - half, mLeft, top + half, half)) return true;
-  if (insideCapsule(x, y, mRight, bottom - half, mRight, top + half, half)) return true;
-  if (insideCapsule(x, y, mLeft, top + half, mMiddle, vee, half)) return true;
-  if (insideCapsule(x, y, mRight, top + half, mMiddle, vee, half)) return true;
+  if (insideStroke(x, y, mLeft, bottom, mLeft, top, half)) return true;
+  if (insideStroke(x, y, mRight, bottom, mRight, top, half)) return true;
+
+  // Square terminals would leave a notch where the two diagonals meet, so each
+  // one runs past the vee and the pair is then clipped to the band the stems
+  // occupy: flat across the top, mitred to a point at the bottom of the joint.
+  // `veeFloor` is where the two outer edges cross — the true tip of the vee.
+  const runX = mMiddle - mLeft;
+  const runY = vee - top;
+  const cos = runX / Math.hypot(runX, runY);
+  const veeFloor = vee + half / cos;
+  if (y >= top && y <= veeFloor) {
+    const reach = half / cos + half;
+    const extend = (ax, ay, bx, by) => {
+      const length = Math.hypot(bx - ax, by - ay);
+      return [bx + ((bx - ax) / length) * reach, by + ((by - ay) / length) * reach];
+    };
+    const [leftTipX, leftTipY] = extend(mLeft, top, mMiddle, vee);
+    const [rightTipX, rightTipY] = extend(mRight, top, mMiddle, vee);
+    if (insideStroke(x, y, mLeft, top, leftTipX, leftTipY, half)) return true;
+    if (insideStroke(x, y, mRight, top, rightTipX, rightTipY, half)) return true;
+  }
 
   // D
   const dLeft = left + mWidth + gap;
@@ -98,7 +138,7 @@ function insideMonogram(x, y) {
   const outerRadius = capHeight * 0.46;
   const innerRadius = Math.max(4, outerRadius - stroke);
 
-  if (insideCapsule(x, y, dLeft + half, top + half, dLeft + half, bottom - half, half)) return true;
+  if (insideStroke(x, y, dLeft + half, top, dLeft + half, bottom, half)) return true;
 
   const inOuter = insideRoundRect(x, y, dLeft, top, dRight, bottom, outerRadius);
   const inInner = insideRoundRect(

@@ -13,7 +13,16 @@ void main() {
 class MdConverterApp extends ConsumerWidget {
   const MdConverterApp({super.key});
 
-  static const Color _seed = Color(0xFF4F46E5);
+  /// Palette from ../../brand.json, the same one the PWA's CSS tokens use.
+  static const Color _accentLight = Color(0xFF33B795);
+  static const Color _accentDark = Color(0xFF5FD4B0);
+  static const Color _navy = Color(0xFF12293F);
+  static const Color _surfaceLight = Color(0xFFE9F4F3);
+  static const Color _surfaceDark = Color(0xFF0E1B28);
+
+  /// The Rx Suite family sets everything in IBM Plex Mono; the bundled faces
+  /// are declared in pubspec.yaml.
+  static const String _fontFamily = 'IBM Plex Mono';
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -33,10 +42,24 @@ class MdConverterApp extends ConsumerWidget {
   }
 
   ThemeData _theme(Brightness brightness) {
-    final scheme = ColorScheme.fromSeed(seedColor: _seed, brightness: brightness);
+    final dark = brightness == Brightness.dark;
+    final accent = dark ? _accentDark : _accentLight;
+    // Seeded so every derived Material role stays harmonious, then the handful
+    // of roles the eye actually reads are pinned to the brand values.
+    final scheme = ColorScheme.fromSeed(seedColor: accent, brightness: brightness).copyWith(
+      primary: accent,
+      onPrimary: dark ? const Color(0xFF0A1520) : const Color(0xFF0C2033),
+      surface: dark ? _surfaceDark : _surfaceLight,
+      onSurface: dark ? const Color(0xFFE4F0EE) : _navy,
+      surfaceContainerLowest: dark ? const Color(0xFF0A1520) : const Color(0xFFFBFDFD),
+      surfaceContainerHighest: dark ? const Color(0xFF16273A) : const Color(0xFFDDEDEB),
+      outlineVariant: dark ? const Color(0xFF25405A) : const Color(0xFFCFE4E0),
+    );
     return ThemeData(
       colorScheme: scheme,
       useMaterial3: true,
+      fontFamily: _fontFamily,
+      scaffoldBackgroundColor: scheme.surface,
       visualDensity: VisualDensity.adaptivePlatformDensity,
       cardTheme: CardTheme(
         elevation: 0,
