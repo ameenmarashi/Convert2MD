@@ -1,0 +1,28 @@
+# Node
+node_modules/
+npm-debug.log*
+*.tsbuildinfo
+
+# Generated source maps (the compiled JS itself is committed so the PWA can be
+# served straight from web/public without a build step)
+web/public/js/**/*.map
+
+# Flutter / Dart
+flutter_app/.dart_tool/
+flutter_app/.packages
+flutter_app/build/
+flutter_app/.flutter-plugins
+flutter_app/.flutter-plugins-dependencies
+flutter_app/pubspec.lock
+flutter_app/ios/Pods/
+flutter_app/macos/Pods/
+flutter_app/**/Flutter/ephemeral/
+flutter_app/**/.symlinks/
+flutter_app/lib/l10n/generated/
+
+# Editors and OS
+.idea/
+.vscode/
+*.iml
+.DS_Store
+Thumbs.db

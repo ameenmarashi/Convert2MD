@@ -1,0 +1,206 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>MD Converter — any document to Markdown, offline</title>
+<meta name="description" content="Convert PDF, Word, Excel, PowerPoint, OpenDocument, EPUB, RTF, HTML, email, CSV and plain text files to Markdown. Works completely offline once installed.">
+<meta name="theme-color" content="#4f46e5" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#0b1020" media="(prefers-color-scheme: dark)">
+<meta name="color-scheme" content="light dark">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="MD Converter">
+<meta name="format-detection" content="telephone=no">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="icons/icon.svg" type="image/svg+xml">
+<link rel="alternate icon" href="icons/icon-192.png">
+<link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+<link rel="stylesheet" href="styles.css">
+</head>
+<body>
+<a class="skip-link" href="#main">Skip to content</a>
+
+<header class="app-bar">
+  <div class="app-bar__brand">
+    <img src="icons/icon.svg" alt="" width="32" height="32" class="app-bar__logo">
+    <div>
+      <h1>MD Converter</h1>
+      <p class="app-bar__tagline">Any document → Markdown, entirely on your device</p>
+    </div>
+  </div>
+  <div class="app-bar__actions">
+    <button type="button" id="install-button" class="button button--ghost" hidden>Install app</button>
+    <button type="button" id="theme-button" class="button button--icon" aria-label="Switch colour theme" title="Switch colour theme">
+      <span aria-hidden="true" id="theme-icon">◐</span>
+    </button>
+  </div>
+</header>
+
+<main id="main">
+  <section id="dropzone" class="dropzone" aria-labelledby="dropzone-title">
+    <input type="file" id="file-input" multiple class="visually-hidden" aria-describedby="dropzone-hint">
+    <h2 id="dropzone-title">Drop files here</h2>
+    <p id="dropzone-hint">PDF · Word · Excel · PowerPoint · OpenDocument · EPUB · RTF · HTML · Email · CSV · Text · Images</p>
+    <div class="dropzone__actions">
+      <button type="button" id="choose-button" class="button button--primary">Choose files</button>
+      <button type="button" id="paste-button" class="button button--ghost">Paste from clipboard</button>
+    </div>
+    <p class="dropzone__note">Nothing is uploaded. Every conversion runs in this browser tab.</p>
+  </section>
+
+  <details class="panel" id="settings-panel">
+    <summary class="panel__summary">
+      <span>Conversion settings</span>
+      <span class="panel__chevron" aria-hidden="true">▾</span>
+    </summary>
+    <div class="panel__body">
+      <div class="field">
+        <label class="switch">
+          <input type="checkbox" id="opt-frontmatter" checked>
+          <span class="switch__track" aria-hidden="true"><span class="switch__thumb"></span></span>
+          <span class="switch__label">
+            YAML front matter
+            <small>Adds title, source file and metadata at the top</small>
+          </span>
+        </label>
+      </div>
+
+      <div class="field">
+        <label class="switch">
+          <input type="checkbox" id="opt-separators" checked>
+          <span class="switch__track" aria-hidden="true"><span class="switch__thumb"></span></span>
+          <span class="switch__label">
+            Page and slide separators
+            <small>Writes <code>---</code> between PDF pages, slides and chapters</small>
+          </span>
+        </label>
+      </div>
+
+      <div class="field">
+        <label class="switch">
+          <input type="checkbox" id="opt-notes" checked>
+          <span class="switch__track" aria-hidden="true"><span class="switch__thumb"></span></span>
+          <span class="switch__label">
+            Notes and comments
+            <small>Speaker notes, footnotes and review comments</small>
+          </span>
+        </label>
+      </div>
+
+      <div class="field">
+        <label class="switch">
+          <input type="checkbox" id="opt-headings" checked>
+          <span class="switch__track" aria-hidden="true"><span class="switch__thumb"></span></span>
+          <span class="switch__label">
+            Detect PDF headings
+            <small>Promotes larger text in PDFs to Markdown headings</small>
+          </span>
+        </label>
+      </div>
+
+      <div class="field">
+        <label class="switch">
+          <input type="checkbox" id="opt-linebreaks">
+          <span class="switch__track" aria-hidden="true"><span class="switch__thumb"></span></span>
+          <span class="switch__label">
+            Keep original line breaks
+            <small>Off reflows paragraphs into single lines</small>
+          </span>
+        </label>
+      </div>
+
+      <div class="field field--stacked">
+        <label for="opt-images">Images</label>
+        <select id="opt-images" class="select">
+          <option value="embed">Embed in the Markdown (base64)</option>
+          <option value="reference">Link by file name</option>
+          <option value="skip">Leave out entirely</option>
+        </select>
+      </div>
+
+      <div class="field field--stacked">
+        <label for="opt-bullet">List bullet</label>
+        <select id="opt-bullet" class="select">
+          <option value="-">- hyphen</option>
+          <option value="*">* asterisk</option>
+          <option value="+">+ plus</option>
+        </select>
+      </div>
+
+      <div class="field field--stacked">
+        <label for="opt-imagelimit">Largest embedded image</label>
+        <select id="opt-imagelimit" class="select">
+          <option value="131072">128 KB</option>
+          <option value="524288" selected>512 KB</option>
+          <option value="2097152">2 MB</option>
+          <option value="8388608">8 MB</option>
+        </select>
+      </div>
+    </div>
+  </details>
+
+  <section id="results-section" class="results" aria-live="polite" hidden>
+    <div class="results__bar">
+      <h2 id="results-title">Converted files</h2>
+      <div class="results__actions">
+        <button type="button" id="download-all" class="button button--primary">Download all (.zip)</button>
+        <button type="button" id="clear-all" class="button button--ghost">Clear</button>
+      </div>
+    </div>
+    <ul id="results-list" class="results__list"></ul>
+  </section>
+
+  <section class="about" id="about">
+    <h2>Works offline, keeps your files private</h2>
+    <div class="about__grid">
+      <article>
+        <h3>Installed = offline</h3>
+        <p>Add it to your Home Screen or Dock and every part of the app — including the PDF and Word engines — is stored on the device. No connection is needed again.</p>
+      </article>
+      <article>
+        <h3>Nothing leaves the device</h3>
+        <p>There is no server and no upload. Files are read in the browser tab, converted there, and forgotten when you close it.</p>
+      </article>
+      <article>
+        <h3>Reads documents properly</h3>
+        <p>Headings, lists, tables, links, footnotes, speaker notes and images are carried across — not just raw text.</p>
+      </article>
+    </div>
+  </section>
+</main>
+
+<footer class="app-footer">
+  <p><span id="offline-badge" class="badge">Offline ready</span> <span id="version-label"></span></p>
+  <p>Install: <strong>iPhone / iPad</strong> — Share → Add to Home Screen. <strong>macOS Safari</strong> — File → Add to Dock. <strong>Chrome / Edge</strong> — install icon in the address bar.</p>
+</footer>
+
+<div id="toast" class="toast" role="status" aria-live="polite" hidden></div>
+
+<template id="result-template">
+  <li class="card">
+    <div class="card__head">
+      <div class="card__title">
+        <h3 class="card__name"></h3>
+        <p class="card__meta"></p>
+      </div>
+      <div class="card__actions">
+        <button type="button" class="button button--small" data-action="copy">Copy</button>
+        <button type="button" class="button button--small button--primary" data-action="download">Download</button>
+        <button type="button" class="button button--small button--icon" data-action="remove" aria-label="Remove">✕</button>
+      </div>
+    </div>
+    <div class="card__warnings" hidden></div>
+    <div class="card__tabs" role="tablist">
+      <button type="button" class="tab" role="tab" data-tab="preview" aria-selected="true">Preview</button>
+      <button type="button" class="tab" role="tab" data-tab="source" aria-selected="false">Markdown</button>
+    </div>
+    <div class="card__panel card__panel--preview markdown-body" role="tabpanel"></div>
+    <pre class="card__panel card__panel--source" role="tabpanel" hidden><code></code></pre>
+  </li>
+</template>
+
+<script type="module" src="js/main.js"></script>
+</body>
+</html>

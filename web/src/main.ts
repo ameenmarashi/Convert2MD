@@ -1,0 +1,586 @@
+/** App shell: file intake, conversion queue, results UI, install and offline. */
+
+import { ConversionResult, ConvertOptions, DEFAULT_OPTIONS, ImageMode } from './core/types.js';
+import { SUPPORTED_EXTENSIONS } from './core/convert.js';
+import { writeZip } from './core/zip.js';
+import { renderMarkdown } from './ui/markdown-preview.js';
+import type { WorkerRequest, WorkerResponse } from './worker.js';
+
+const APP_VERSION = '1.0.0';
+const SETTINGS_KEY = 'md-converter.settings';
+const THEME_KEY = 'md-converter.theme';
+const MAX_FILE_BYTES = 200 * 1024 * 1024;
+
+interface Entry {
+  id: string;
+  name: string;
+  status: 'pending' | 'done' | 'error';
+  result?: ConversionResult;
+  error?: string;
+  element?: HTMLLIElement;
+}
+
+const entries = new Map<string, Entry>();
+let options: ConvertOptions = loadOptions();
+let worker: Worker | null = null;
+let inlineConvert: typeof import('./core/convert.js').convertFile | null = null;
+let installPrompt: BeforeInstallPromptEvent | null = null;
+let sequence = 0;
+
+const dom = {
+  dropzone: byId<HTMLElement>('dropzone'),
+  fileInput: byId<HTMLInputElement>('file-input'),
+  chooseButton: byId<HTMLButtonElement>('choose-button'),
+  pasteButton: byId<HTMLButtonElement>('paste-button'),
+  resultsSection: byId<HTMLElement>('results-section'),
+  resultsList: byId<HTMLUListElement>('results-list'),
+  resultsTitle: byId<HTMLElement>('results-title'),
+  downloadAll: byId<HTMLButtonElement>('download-all'),
+  clearAll: byId<HTMLButtonElement>('clear-all'),
+  template: byId<HTMLTemplateElement>('result-template'),
+  toast: byId<HTMLElement>('toast'),
+  themeButton: byId<HTMLButtonElement>('theme-button'),
+  themeIcon: byId<HTMLElement>('theme-icon'),
+  installButton: byId<HTMLButtonElement>('install-button'),
+  offlineBadge: byId<HTMLElement>('offline-badge'),
+  versionLabel: byId<HTMLElement>('version-label'),
+};
+
+function byId<T extends HTMLElement>(id: string): T {
+  const element = document.getElementById(id);
+  if (!element) throw new Error(`Missing element #${id}`);
+  return element as T;
+}
+
+/* ------------------------------------------------------------------ startup */
+
+function init(): void {
+  dom.fileInput.accept = SUPPORTED_EXTENSIONS.join(',');
+  dom.versionLabel.textContent = `v${APP_VERSION}`;
+  applyTheme(localStorage.getItem(THEME_KEY) ?? 'system');
+  bindSettings();
+  bindIntake();
+  bindGlobalActions();
+  registerServiceWorker();
+  watchConnectivity();
+  handleLaunchFiles();
+  void collectSharedFiles();
+}
+
+function bindIntake(): void {
+  dom.chooseButton.addEventListener('click', () => dom.fileInput.click());
+  dom.fileInput.addEventListener('change', () => {
+    if (dom.fileInput.files) void addFiles([...dom.fileInput.files]);
+    dom.fileInput.value = '';
+  });
+
+  for (const type of ['dragenter', 'dragover']) {
+    document.addEventListener(type, (event) => {
+      event.preventDefault();
+      dom.dropzone.classList.add('is-dragover');
+    });
+  }
+  for (const type of ['dragleave', 'drop']) {
+    document.addEventListener(type, (event) => {
+      if (type === 'dragleave' && (event as DragEvent).relatedTarget) return;
+      dom.dropzone.classList.remove('is-dragover');
+    });
+  }
+  document.addEventListener('drop', (event) => {
+    event.preventDefault();
+    const files = event.dataTransfer?.files;
+    if (files && files.length > 0) void addFiles([...files]);
+  });
+
+  dom.pasteButton.addEventListener('click', () => void pasteFromClipboard());
+  document.addEventListener('paste', (event) => {
+    const files = event.clipboardData?.files;
+    if (files && files.length > 0) {
+      event.preventDefault();
+      void addFiles([...files]);
+      return;
+    }
+    const text = event.clipboardData?.getData('text/plain');
+    if (text && text.trim().length > 40 && document.activeElement === document.body) {
+      event.preventDefault();
+      void addFiles([textAsFile(text)]);
+    }
+  });
+}
+
+function bindGlobalActions(): void {
+  dom.downloadAll.addEventListener('click', downloadAllAsZip);
+  dom.clearAll.addEventListener('click', () => {
+    entries.clear();
+    dom.resultsList.replaceChildren();
+    updateResultsVisibility();
+  });
+
+  dom.themeButton.addEventListener('click', () => {
+    const current = localStorage.getItem(THEME_KEY) ?? 'system';
+    const next = current === 'system' ? 'light' : current === 'light' ? 'dark' : 'system';
+    localStorage.setItem(THEME_KEY, next);
+    applyTheme(next);
+  });
+
+  window.addEventListener('beforeinstallprompt', (event) => {
+    event.preventDefault();
+    installPrompt = event as BeforeInstallPromptEvent;
+    dom.installButton.hidden = false;
+  });
+
+  dom.installButton.addEventListener('click', async () => {
+    if (!installPrompt) return;
+    await installPrompt.prompt();
+    installPrompt = null;
+    dom.installButton.hidden = true;
+  });
+
+  window.addEventListener('appinstalled', () => {
+    dom.installButton.hidden = true;
+    toast('Installed. It now works offline.');
+  });
+}
+
+function bindSettings(): void {
+  const bindSwitch = (id: string, key: keyof ConvertOptions): void => {
+    const input = byId<HTMLInputElement>(id);
+    input.checked = Boolean(options[key]);
+    input.addEventListener('change', () => {
+      (options as unknown as Record<string, unknown>)[key] = input.checked;
+      saveOptions();
+    });
+  };
+
+  bindSwitch('opt-frontmatter', 'frontMatter');
+  bindSwitch('opt-separators', 'pageSeparators');
+  bindSwitch('opt-notes', 'includeNotes');
+  bindSwitch('opt-headings', 'detectPdfHeadings');
+  bindSwitch('opt-linebreaks', 'preserveLineBreaks');
+
+  const images = byId<HTMLSelectElement>('opt-images');
+  images.value = options.imageMode;
+  images.addEventListener('change', () => {
+    options.imageMode = images.value as ImageMode;
+    saveOptions();
+  });
+
+  const bullet = byId<HTMLSelectElement>('opt-bullet');
+  bullet.value = options.bullet;
+  bullet.addEventListener('change', () => {
+    options.bullet = bullet.value as ConvertOptions['bullet'];
+    saveOptions();
+  });
+
+  const limit = byId<HTMLSelectElement>('opt-imagelimit');
+  limit.value = String(options.maxEmbeddedImageBytes);
+  limit.addEventListener('change', () => {
+    options.maxEmbeddedImageBytes = Number(limit.value);
+    saveOptions();
+  });
+}
+
+function loadOptions(): ConvertOptions {
+  try {
+    const stored = localStorage.getItem(SETTINGS_KEY);
+    if (!stored) return { ...DEFAULT_OPTIONS };
+    return { ...DEFAULT_OPTIONS, ...(JSON.parse(stored) as Partial<ConvertOptions>) };
+  } catch {
+    return { ...DEFAULT_OPTIONS };
+  }
+}
+
+function saveOptions(): void {
+  try {
+    localStorage.setItem(SETTINGS_KEY, JSON.stringify(options));
+  } catch {
+    // Private browsing can refuse storage; settings simply stay session-only.
+  }
+}
+
+function applyTheme(theme: string): void {
+  if (theme === 'system') document.documentElement.removeAttribute('data-theme');
+  else document.documentElement.setAttribute('data-theme', theme);
+  dom.themeIcon.textContent = theme === 'light' ? '☀' : theme === 'dark' ? '☾' : '◐';
+  dom.themeButton.title = `Colour theme: ${theme}`;
+}
+
+/* ------------------------------------------------------------- conversion */
+
+async function addFiles(files: File[]): Promise<void> {
+  const accepted = files.filter((file) => {
+    if (file.size > MAX_FILE_BYTES) {
+      addEntry(file.name, `The file is ${formatBytes(file.size)}, larger than this app will load in one go.`);
+      return false;
+    }
+    return true;
+  });
+  if (accepted.length === 0) return;
+
+  dom.dropzone.classList.add('is-busy');
+  for (const file of accepted) {
+    await convertOne(file);
+  }
+  dom.dropzone.classList.remove('is-busy');
+}
+
+async function convertOne(file: File): Promise<void> {
+  const id = `f${++sequence}`;
+  const entry: Entry = { id, name: file.name, status: 'pending' };
+  entries.set(id, entry);
+  renderEntry(entry);
+  updateResultsVisibility();
+
+  try {
+    const buffer = await file.arrayBuffer();
+    const result = await runConversion({
+      id,
+      name: file.name || 'document',
+      mime: file.type,
+      lastModified: file.lastModified,
+      buffer,
+      options,
+    });
+    entry.status = 'done';
+    entry.result = result;
+  } catch (err) {
+    entry.status = 'error';
+    entry.error = err instanceof Error ? err.message : String(err);
+  }
+  renderEntry(entry);
+  updateResultsVisibility();
+}
+
+function runConversion(request: WorkerRequest): Promise<ConversionResult> {
+  const activeWorker = ensureWorker();
+  if (!activeWorker) return runInline(request);
+
+  return new Promise<ConversionResult>((resolve, reject) => {
+    const onMessage = (event: MessageEvent<WorkerResponse>): void => {
+      const data = event.data;
+      if (data.id !== request.id) return;
+      activeWorker.removeEventListener('message', onMessage);
+      if (data.type === 'result') resolve(data.result);
+      else reject(new Error(data.message));
+    };
+    activeWorker.addEventListener('message', onMessage);
+    activeWorker.postMessage(request, [request.buffer]);
+  });
+}
+
+function ensureWorker(): Worker | null {
+  if (worker) return worker;
+  try {
+    worker = new Worker(new URL('./worker.js', import.meta.url), { type: 'module' });
+    worker.addEventListener('error', () => {
+      worker?.terminate();
+      worker = null;
+    });
+    return worker;
+  } catch {
+    return null;
+  }
+}
+
+/** Fallback for browsers without module workers: convert on the main thread. */
+async function runInline(request: WorkerRequest): Promise<ConversionResult> {
+  if (!inlineConvert) {
+    const module = await import('./core/convert.js');
+    inlineConvert = module.convertFile;
+  }
+  return inlineConvert(
+    {
+      name: request.name,
+      bytes: new Uint8Array(request.buffer),
+      mime: request.mime,
+      lastModified: request.lastModified,
+    },
+    request.options
+  );
+}
+
+function addEntry(name: string, error: string): void {
+  const id = `f${++sequence}`;
+  const entry: Entry = { id, name, status: 'error', error };
+  entries.set(id, entry);
+  renderEntry(entry);
+  updateResultsVisibility();
+}
+
+/* ----------------------------------------------------------------- results */
+
+function renderEntry(entry: Entry): void {
+  const fragment = dom.template.content.cloneNode(true) as DocumentFragment;
+  const card = fragment.querySelector('.card') as HTMLLIElement;
+  const name = card.querySelector('.card__name') as HTMLElement;
+  const meta = card.querySelector('.card__meta') as HTMLElement;
+  const warnings = card.querySelector('.card__warnings') as HTMLElement;
+  const preview = card.querySelector('.card__panel--preview') as HTMLElement;
+  const source = card.querySelector('.card__panel--source code') as HTMLElement;
+  const tabs = [...card.querySelectorAll<HTMLButtonElement>('.tab')];
+
+  name.textContent = entry.result?.outputName ?? entry.name;
+
+  if (entry.status === 'pending') {
+    meta.textContent = 'Converting…';
+    card.querySelector('.card__actions')?.setAttribute('hidden', '');
+    card.querySelector('.card__tabs')?.setAttribute('hidden', '');
+    preview.hidden = true;
+  } else if (entry.status === 'error') {
+    card.classList.add('card--error');
+    meta.textContent = entry.name;
+    card.querySelector('.card__actions')?.setAttribute('hidden', '');
+    card.querySelector('.card__tabs')?.setAttribute('hidden', '');
+    preview.hidden = true;
+    const error = document.createElement('p');
+    error.className = 'card__error';
+    error.textContent = entry.error ?? 'Conversion failed.';
+    card.querySelector('.card__head')?.after(error);
+  } else if (entry.result) {
+    const result = entry.result;
+    meta.textContent = [
+      result.format,
+      `${result.wordCount.toLocaleString()} words`,
+      result.imageCount > 0 ? `${result.imageCount} image${result.imageCount === 1 ? '' : 's'}` : '',
+      `${(result.markdown.length / 1024).toFixed(1)} KB`,
+      `${result.durationMs} ms`,
+    ]
+      .filter(Boolean)
+      .join(' · ');
+
+    if (result.warnings.length > 0) {
+      warnings.hidden = false;
+      const list = document.createElement('ul');
+      for (const warning of result.warnings.slice(0, 6)) {
+        const item = document.createElement('li');
+        item.textContent = warning;
+        list.append(item);
+      }
+      warnings.append(list);
+    }
+
+    preview.append(renderMarkdown(result.markdown));
+    source.textContent = result.markdown;
+
+    card.querySelector('[data-action="copy"]')?.addEventListener('click', () => void copyMarkdown(result));
+    card.querySelector('[data-action="download"]')?.addEventListener('click', () => downloadMarkdown(result));
+  }
+
+  card.querySelector('[data-action="remove"]')?.addEventListener('click', () => {
+    entries.delete(entry.id);
+    entry.element?.remove();
+    updateResultsVisibility();
+  });
+
+  for (const tab of tabs) {
+    tab.addEventListener('click', () => {
+      for (const other of tabs) other.setAttribute('aria-selected', String(other === tab));
+      const showSource = tab.dataset.tab === 'source';
+      (card.querySelector('.card__panel--preview') as HTMLElement).hidden = showSource;
+      (card.querySelector('.card__panel--source') as HTMLElement).hidden = !showSource;
+    });
+  }
+
+  if (entry.element) {
+    entry.element.replaceWith(card);
+  } else {
+    dom.resultsList.append(card);
+  }
+  entry.element = card;
+}
+
+function updateResultsVisibility(): void {
+  const count = entries.size;
+  dom.resultsSection.hidden = count === 0;
+  const done = [...entries.values()].filter((e) => e.status === 'done').length;
+  dom.resultsTitle.textContent = count === 1 ? 'Converted file' : `Converted files (${done}/${count})`;
+  dom.downloadAll.disabled = done === 0;
+}
+
+async function copyMarkdown(result: ConversionResult): Promise<void> {
+  try {
+    await navigator.clipboard.writeText(result.markdown);
+    toast('Markdown copied');
+  } catch {
+    const area = document.createElement('textarea');
+    area.value = result.markdown;
+    area.style.position = 'fixed';
+    area.style.opacity = '0';
+    document.body.append(area);
+    area.select();
+    const ok = document.execCommand('copy');
+    area.remove();
+    toast(ok ? 'Markdown copied' : 'Copying was blocked — use Download instead');
+  }
+}
+
+function downloadMarkdown(result: ConversionResult): void {
+  const blob = new Blob([result.markdown], { type: 'text/markdown;charset=utf-8' });
+  saveBlob(blob, result.outputName);
+}
+
+function downloadAllAsZip(): void {
+  const done = [...entries.values()].filter((entry) => entry.result);
+  if (done.length === 0) return;
+
+  if (done.length === 1 && done[0].result) {
+    downloadMarkdown(done[0].result);
+    return;
+  }
+
+  const encoder = new TextEncoder();
+  const used = new Set<string>();
+  const files = done.map((entry) => {
+    const result = entry.result as ConversionResult;
+    let name = result.outputName;
+    let counter = 2;
+    while (used.has(name)) {
+      name = result.outputName.replace(/\.md$/, `-${counter++}.md`);
+    }
+    used.add(name);
+    return { name, data: encoder.encode(result.markdown) };
+  });
+
+  const archive = writeZip(files);
+  saveBlob(new Blob([archive.buffer as ArrayBuffer], { type: 'application/zip' }), 'markdown-export.zip');
+}
+
+function saveBlob(blob: Blob, filename: string): void {
+  const url = URL.createObjectURL(blob);
+  const anchor = document.createElement('a');
+  anchor.href = url;
+  anchor.download = filename;
+  anchor.rel = 'noopener';
+  document.body.append(anchor);
+  anchor.click();
+  anchor.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 30_000);
+}
+
+let toastTimer = 0;
+function toast(message: string): void {
+  dom.toast.textContent = message;
+  dom.toast.hidden = false;
+  requestAnimationFrame(() => dom.toast.classList.add('is-visible'));
+  window.clearTimeout(toastTimer);
+  toastTimer = window.setTimeout(() => {
+    dom.toast.classList.remove('is-visible');
+    window.setTimeout(() => {
+      dom.toast.hidden = true;
+    }, 220);
+  }, 2600);
+}
+
+/* ---------------------------------------------------------------- intake+ */
+
+async function pasteFromClipboard(): Promise<void> {
+  try {
+    if (navigator.clipboard && 'read' in navigator.clipboard) {
+      const items = await navigator.clipboard.read();
+      const files: File[] = [];
+      for (const item of items) {
+        for (const type of item.types) {
+          if (type === 'text/plain' || type.startsWith('image/') || type === 'text/html') {
+            const blob = await item.getType(type);
+            files.push(new File([blob], fileNameForType(type), { type }));
+          }
+        }
+      }
+      if (files.length > 0) {
+        await addFiles(files);
+        return;
+      }
+    }
+    const text = await navigator.clipboard.readText();
+    if (text.trim()) await addFiles([textAsFile(text)]);
+    else toast('The clipboard is empty');
+  } catch {
+    toast('Clipboard access was refused — paste with ⌘V / Ctrl+V instead');
+  }
+}
+
+function fileNameForType(type: string): string {
+  if (type === 'text/html') return 'clipboard.html';
+  if (type.startsWith('image/')) return `clipboard.${type.split('/')[1].split('+')[0]}`;
+  return 'clipboard.txt';
+}
+
+function textAsFile(text: string): File {
+  return new File([text], 'clipboard.txt', { type: 'text/plain' });
+}
+
+interface LaunchParams {
+  files: FileSystemFileHandle[];
+}
+
+function handleLaunchFiles(): void {
+  const queue = (window as unknown as { launchQueue?: { setConsumer(cb: (p: LaunchParams) => void): void } }).launchQueue;
+  if (!queue) return;
+  queue.setConsumer((params) => {
+    void (async () => {
+      const files: File[] = [];
+      for (const handle of params.files ?? []) files.push(await handle.getFile());
+      if (files.length > 0) await addFiles(files);
+    })();
+  });
+}
+
+/** Files sent through the Web Share Target are parked in a cache by the SW. */
+async function collectSharedFiles(): Promise<void> {
+  const url = new URL(window.location.href);
+  if (url.searchParams.get('share-target') !== '1') return;
+  url.searchParams.delete('share-target');
+  window.history.replaceState(null, '', url.toString());
+
+  if (!('caches' in window)) return;
+  try {
+    const cache = await caches.open('md-converter-share');
+    const requests = await cache.keys();
+    const files: File[] = [];
+    for (const request of requests) {
+      const response = await cache.match(request);
+      if (!response) continue;
+      const blob = await response.blob();
+      const name = decodeURIComponent(new URL(request.url).pathname.split('/').pop() ?? 'shared');
+      files.push(new File([blob], name, { type: blob.type }));
+      await cache.delete(request);
+    }
+    if (files.length > 0) await addFiles(files);
+  } catch {
+    // Nothing shared, or the cache was cleared between the share and the load.
+  }
+}
+
+/* ------------------------------------------------------- offline plumbing */
+
+function registerServiceWorker(): void {
+  if (!('serviceWorker' in navigator)) return;
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('sw.js').catch(() => {
+      // Registration fails on file:// and in some private modes; the app still runs.
+    });
+  });
+}
+
+function watchConnectivity(): void {
+  const update = (): void => {
+    const offline = !navigator.onLine;
+    dom.offlineBadge.textContent = offline ? 'Offline — still working' : 'Offline ready';
+    dom.offlineBadge.classList.toggle('badge--offline', offline);
+  };
+  window.addEventListener('online', update);
+  window.addEventListener('offline', update);
+  update();
+}
+
+function formatBytes(bytes: number): string {
+  if (bytes < 1024) return `${bytes} B`;
+  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
+  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+}
+
+interface BeforeInstallPromptEvent extends Event {
+  prompt(): Promise<void>;
+}
+
+init();
