@@ -189,5 +189,90 @@
   "tipLink": "رابط — نص يفتح صفحة",
   "tipQuote": "اقتباس — كلام شخص آخر، مفصول عن النص",
   "tipTable": "جدول — صفوف وأعمدة من القيم",
-  "tipRule": "فاصل — خط بين الأقسام"
+  "tipRule": "فاصل — خط بين الأقسام",
+  "newDocument": "ابدأ مستندًا جديدًا",
+  "yourDocuments": "مستنداتك",
+  "documentsOnDevice": "{count} على هذا الجهاز",
+  "@documentsOnDevice": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "documentsInFilesApp": "هذه ملفات حقيقية. ستجدها في تطبيق «الملفات» ضمن على جهاز iPhone أو iPad ← MD Converter.",
+  "documentsInFinder": "هذه ملفات حقيقية، محفوظة في مجلد مستندات التطبيق.",
+  "deleteDocument": "حذف",
+  "deleteConfirm": "حذف {name}؟ لا يمكن التراجع عن ذلك.",
+  "@deleteConfirm": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "deleted": "تم حذف {name}.",
+  "@deleted": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "cancel": "إلغاء",
+  "keepInApp": "الاحتفاظ به في التطبيق",
+  "keptAs": "تم الاحتفاظ به باسم {name} ضمن مستنداتك.",
+  "@keptAs": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "savedToDevice": "تم الحفظ ضمن مستنداتك على هذا الجهاز.",
+  "renameCollision": "هناك مستند بهذا الاسم مسبقًا، لذا صار اسم هذا {name}.",
+  "@renameCollision": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "rename": "إعادة تسمية",
+  "documentName": "اسم المستند",
+  "updatedJustNow": "الآن",
+  "updatedMinutes": "قبل {count} دقيقة",
+  "@updatedMinutes": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "updatedHours": "قبل {count} ساعة",
+  "@updatedHours": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "updatedDays": "قبل {count} يوم",
+  "@updatedDays": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "wordCount": "{count, plural, =1{كلمة واحدة} other{{count} كلمة}}",
+  "@wordCount": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "noDocumentsYet": "لا شيء هنا بعد. ابدأ مستندًا جديدًا، أو احتفظ بمستند فتحته.",
+  "exportCopy": "حفظ نسخة"
 }

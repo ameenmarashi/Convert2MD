@@ -22,12 +22,18 @@ let sizeIndex = SIZES.indexOf(DEFAULT_SIZE);
 let onCopy = null;
 let onDownload = null;
 let onToast = null;
+let onSave = null;
+let onKeep = null;
+let onRename = null;
 let mode = 'read';
 /** Wires the reader chrome once, at startup. */
 export function initReader(handlers) {
     onCopy = handlers.copy;
     onDownload = handlers.download;
     onToast = handlers.toast;
+    onSave = handlers.save;
+    onKeep = handlers.keep;
+    onRename = handlers.rename;
     dom = {
         root: required('reader'),
         name: required('reader-name'),
@@ -36,6 +42,9 @@ export function initReader(handlers) {
         toc: required('reader-toc'),
         editor: required('editor'),
         toolbar: required('editor-toolbar'),
+        rename: required('reader-rename'),
+        saveButton: required('reader-save'),
+        keepButton: required('reader-keep'),
         contentsButton: required('reader-contents'),
         readButton: required('mode-read'),
         editButton: required('mode-edit'),
@@ -59,6 +68,19 @@ export function initReader(handlers) {
     });
     dom.readButton.addEventListener('click', () => setMode('read'));
     dom.editButton.addEventListener('click', () => setMode('edit'));
+    dom.saveButton.addEventListener('click', () => saveToLibrary());
+    dom.keepButton.addEventListener('click', () => keepInLibrary());
+    // The title is the document's name: type over it and that is the rename.
+    dom.rename.addEventListener('change', () => applyRename());
+    dom.rename.addEventListener('blur', () => applyRename());
+    dom.rename.addEventListener('keydown', (event) => {
+        if (event.key === 'Enter')
+            dom.rename.blur();
+        if (event.key === 'Escape') {
+            dom.rename.value = current?.name ?? '';
+            dom.rename.blur();
+        }
+    });
     dom.contentsButton.addEventListener('click', () => {
         const showing = !dom.toc.hidden;
         dom.toc.hidden = showing;
@@ -77,14 +99,16 @@ export function initReader(handlers) {
 export function isOpen() {
     return Boolean(dom && !dom.root.hidden);
 }
-export function openReader(document_) {
+export function openReader(document_, options = {}) {
     if (!dom)
         return;
     current = document_;
-    dom.name.textContent = document_.name;
+    showName();
     dom.doc.replaceChildren(renderMarkdown(document_.markdown));
     const { restoredDraft } = loadIntoEditor(document_.name, document_.markdown);
-    setMode('read');
+    // A document started from scratch has nothing to read yet, so it opens in
+    // the editor with the cursor already in it.
+    setMode(options.edit ? 'edit' : 'read');
     updateMeta();
     if (restoredDraft) {
         onToast?.('Unsaved edits from last time were restored — switch to Edit to see them.');
@@ -116,6 +140,63 @@ export function closeReader(options = {}) {
     if (!options.fromHistory && window.history.state?.reader === true) {
         window.history.back();
     }
+}
+/* ---------------------------------------------------------------- library */
+/**
+ * A document in the library shows its name as an editable field, because the
+ * title is the only place to rename it — on iOS there is no folder to go and
+ * rename it in. One that came from a file keeps a plain, unchangeable title.
+ */
+function showName() {
+    if (!dom || !current)
+        return;
+    const inLibrary = Boolean(current.id);
+    dom.name.hidden = inLibrary;
+    dom.name.textContent = current.name;
+    dom.rename.hidden = !inLibrary;
+    dom.rename.value = current.name;
+    dom.saveButton.hidden = !inLibrary;
+    dom.keepButton.hidden = inLibrary;
+}
+function saveToLibrary() {
+    if (!current?.id)
+        return;
+    const markdown = markdownNow();
+    onSave?.({ id: current.id, name: current.name, markdown });
+    current.markdown = markdown;
+    markEditorSaved();
+    updateMeta();
+    onToast?.('Saved to your documents on this device.');
+}
+function keepInLibrary() {
+    if (!current || current.id)
+        return;
+    const added = onKeep?.({ name: current.name, markdown: markdownNow() });
+    if (!added)
+        return;
+    current = { id: added.id, name: added.name, markdown: markdownNow() };
+    showName();
+    markEditorSaved();
+    updateMeta();
+    onToast?.(`Kept as ${added.name} in your documents.`);
+}
+function applyRename() {
+    if (!dom || !current?.id)
+        return;
+    const wanted = dom.rename.value.trim();
+    if (!wanted || wanted === current.name) {
+        dom.rename.value = current.name;
+        return;
+    }
+    const finalName = onRename?.(current.id, wanted);
+    if (!finalName) {
+        dom.rename.value = current.name;
+        return;
+    }
+    current.name = finalName;
+    dom.rename.value = finalName;
+    if (finalName !== wanted)
+        onToast?.(`A document was already called that, so this one is ${finalName}.`);
 }
 /* ------------------------------------------------------------------- mode */
 /** The text as it stands: what is being edited if editing, else the original. */

@@ -189,5 +189,90 @@
   "tipLink": "Link — text that opens a page",
   "tipQuote": "Quote — someone else’s words, set apart",
   "tipTable": "Table — rows and columns of values",
-  "tipRule": "Divider — a line between sections"
+  "tipRule": "Divider — a line between sections",
+  "newDocument": "Start a new document",
+  "yourDocuments": "Your documents",
+  "documentsOnDevice": "{count} on this device",
+  "@documentsOnDevice": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "documentsInFilesApp": "These are real files. Find them in the Files app under On My iPhone or iPad → MD Converter.",
+  "documentsInFinder": "These are real files, kept in the app’s Documents folder.",
+  "deleteDocument": "Delete",
+  "deleteConfirm": "Delete {name}? This cannot be undone.",
+  "@deleteConfirm": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "deleted": "{name} deleted.",
+  "@deleted": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "cancel": "Cancel",
+  "keepInApp": "Keep in app",
+  "keptAs": "Kept as {name} in your documents.",
+  "@keptAs": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "savedToDevice": "Saved to your documents on this device.",
+  "renameCollision": "A document was already called that, so this one is {name}.",
+  "@renameCollision": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "rename": "Rename",
+  "documentName": "Document name",
+  "updatedJustNow": "just now",
+  "updatedMinutes": "{count} min ago",
+  "@updatedMinutes": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "updatedHours": "{count} h ago",
+  "@updatedHours": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "updatedDays": "{count} d ago",
+  "@updatedDays": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "wordCount": "{count, plural, =1{1 word} other{{count} words}}",
+  "@wordCount": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "noDocumentsYet": "Nothing here yet. Start a new document, or keep one you have opened.",
+  "exportCopy": "Save a copy"
 }

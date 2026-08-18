@@ -55,6 +55,31 @@ viewer would. Setting *Images* to "Leave out entirely" prevents it.
 You can verify the whole claim: install the app, turn off the network, and
 convert a file.
 
+## Your documents, and seeing them on iOS
+
+**Start a new document** creates one and opens it straight in the editor, with
+its own title already written so the first thing you see is a heading appearing
+from `# `. Documents you open from a file can be added with **Keep in app**.
+They are listed under *Your documents* on the home screen, renameable by typing
+over the title, and they survive closing the app.
+
+This exists because of iOS. A web app there gets no folder to browse — no
+directory picker, no File System Access API — so a document written in the PWA
+would otherwise have nowhere to live between visits. The library is that place;
+it is stored per-document in the browser's local storage, on the device.
+
+The **Flutter apps go further: the library is real files on disk.** They are
+written into the app's own Documents directory, and because
+`tool/configure_platforms.sh` sets `UIFileSharingEnabled` and
+`LSSupportsOpeningDocumentsInPlace`, iOS and iPadOS show that folder in the
+**Files** app under *On My iPhone/iPad → MD Converter*. So a document started in
+the app is a `.md` file you can open, copy, or move to iCloud Drive from
+outside it — not something locked inside an app.
+
+Two things called Save would be confusing, so they are not: **Save** writes back
+to the document in your library, and **Save a copy** / **Download** exports a
+file out of the app.
+
 ## Reading and editing Markdown
 
 A `.md` file is already the finished document, so there is nothing to convert.

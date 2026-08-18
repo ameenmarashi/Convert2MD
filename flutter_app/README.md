@@ -68,6 +68,7 @@ lib/
     │   ├── text_decode.dart       BOM sniffing, cp1252 fallback
     │   └── xml_query.dart         namespace-tolerant XML queries
     ├── converters/                one file per format, plus pdf/ (8 modules)
+    │   ├── document_library.dart  the app's own .md files on disk
     │   ├── markdown_editing.dart  editor rules as pure functions
     ├── platform/
     │   └── opened_files.dart      documents the OS hands over ("Open with")
@@ -80,6 +81,19 @@ platform/                          native halves, installed by tool/
 tool/
 └── configure_platforms.sh         registers the document types after create
 ```
+
+## Your documents
+
+`lib/src/core/document_library.dart` keeps the app's documents as real `.md`
+files in the app's own Documents directory — not in a database, on purpose.
+With `UIFileSharingEnabled` and `LSSupportsOpeningDocumentsInPlace` set by
+`tool/configure_platforms.sh`, iOS and iPadOS list that folder in the **Files**
+app under *On My iPhone/iPad → MD Converter*, so anything started here can be
+opened, copied or moved to iCloud Drive from outside the app.
+
+**Start a new document** creates one and opens the editor on it. A document
+opened from elsewhere can be added with **Keep in app**. Renaming happens by
+typing over the title, since on iOS there is no folder to go and rename it in.
 
 ## Reading and editing Markdown
 

@@ -29,6 +29,8 @@ const DEFAULT_SIZE = 1;
 export interface ReaderDocument {
   name: string;
   markdown: string;
+  /** Set when the document lives in this device's library. */
+  id?: string;
 }
 
 interface ReaderDom {
@@ -39,6 +41,9 @@ interface ReaderDom {
   toc: HTMLElement;
   editor: HTMLElement;
   toolbar: HTMLElement;
+  rename: HTMLInputElement;
+  saveButton: HTMLButtonElement;
+  keepButton: HTMLButtonElement;
   contentsButton: HTMLButtonElement;
   readButton: HTMLButtonElement;
   editButton: HTMLButtonElement;
@@ -52,6 +57,9 @@ let sizeIndex = SIZES.indexOf(DEFAULT_SIZE);
 let onCopy: ((markdown: string) => void) | null = null;
 let onDownload: ((document: ReaderDocument) => void) | null = null;
 let onToast: ((message: string) => void) | null = null;
+let onSave: ((document: Required<ReaderDocument>) => void) | null = null;
+let onKeep: ((document: ReaderDocument) => { id: string; name: string } | null) | null = null;
+let onRename: ((id: string, name: string) => string | null) | null = null;
 let mode: Mode = 'read';
 
 /** Wires the reader chrome once, at startup. */
@@ -59,10 +67,18 @@ export function initReader(handlers: {
   copy(markdown: string): void;
   download(document: ReaderDocument): void;
   toast(message: string): void;
+  /** Writes the document to the device's library; returns its final name. */
+  save(document: Required<ReaderDocument>): void;
+  /** Adds a document that is not in the library yet; returns its new id. */
+  keep(document: ReaderDocument): { id: string; name: string } | null;
+  rename(id: string, name: string): string | null;
 }): void {
   onCopy = handlers.copy;
   onDownload = handlers.download;
   onToast = handlers.toast;
+  onSave = handlers.save;
+  onKeep = handlers.keep;
+  onRename = handlers.rename;
 
   dom = {
     root: required('reader'),
@@ -72,6 +88,9 @@ export function initReader(handlers: {
     toc: required('reader-toc'),
     editor: required('editor'),
     toolbar: required('editor-toolbar'),
+    rename: required<HTMLInputElement>('reader-rename'),
+    saveButton: required<HTMLButtonElement>('reader-save'),
+    keepButton: required<HTMLButtonElement>('reader-keep'),
     contentsButton: required<HTMLButtonElement>('reader-contents'),
     readButton: required<HTMLButtonElement>('mode-read'),
     editButton: required<HTMLButtonElement>('mode-edit'),
@@ -98,6 +117,20 @@ export function initReader(handlers: {
   dom.readButton.addEventListener('click', () => setMode('read'));
   dom.editButton.addEventListener('click', () => setMode('edit'));
 
+  dom.saveButton.addEventListener('click', () => saveToLibrary());
+  dom.keepButton.addEventListener('click', () => keepInLibrary());
+
+  // The title is the document's name: type over it and that is the rename.
+  dom.rename.addEventListener('change', () => applyRename());
+  dom.rename.addEventListener('blur', () => applyRename());
+  dom.rename.addEventListener('keydown', (event) => {
+    if (event.key === 'Enter') dom!.rename.blur();
+    if (event.key === 'Escape') {
+      dom!.rename.value = current?.name ?? '';
+      dom!.rename.blur();
+    }
+  });
+
   dom.contentsButton.addEventListener('click', () => {
     const showing = !dom!.toc.hidden;
     dom!.toc.hidden = showing;
@@ -118,15 +151,17 @@ export function isOpen(): boolean {
   return Boolean(dom && !dom.root.hidden);
 }
 
-export function openReader(document_: ReaderDocument): void {
+export function openReader(document_: ReaderDocument, options: { edit?: boolean } = {}): void {
   if (!dom) return;
   current = document_;
 
-  dom.name.textContent = document_.name;
+  showName();
 
   dom.doc.replaceChildren(renderMarkdown(document_.markdown));
   const { restoredDraft } = loadIntoEditor(document_.name, document_.markdown);
-  setMode('read');
+  // A document started from scratch has nothing to read yet, so it opens in
+  // the editor with the cursor already in it.
+  setMode(options.edit ? 'edit' : 'read');
   updateMeta();
 
   if (restoredDraft) {
@@ -164,6 +199,66 @@ export function closeReader(options: { fromHistory?: boolean; force?: boolean } 
   if (!options.fromHistory && window.history.state?.reader === true) {
     window.history.back();
   }
+}
+
+/* ---------------------------------------------------------------- library */
+
+/**
+ * A document in the library shows its name as an editable field, because the
+ * title is the only place to rename it — on iOS there is no folder to go and
+ * rename it in. One that came from a file keeps a plain, unchangeable title.
+ */
+function showName(): void {
+  if (!dom || !current) return;
+  const inLibrary = Boolean(current.id);
+
+  dom.name.hidden = inLibrary;
+  dom.name.textContent = current.name;
+  dom.rename.hidden = !inLibrary;
+  dom.rename.value = current.name;
+
+  dom.saveButton.hidden = !inLibrary;
+  dom.keepButton.hidden = inLibrary;
+}
+
+function saveToLibrary(): void {
+  if (!current?.id) return;
+  const markdown = markdownNow();
+  onSave?.({ id: current.id, name: current.name, markdown });
+  current.markdown = markdown;
+  markEditorSaved();
+  updateMeta();
+  onToast?.('Saved to your documents on this device.');
+}
+
+function keepInLibrary(): void {
+  if (!current || current.id) return;
+  const added = onKeep?.({ name: current.name, markdown: markdownNow() });
+  if (!added) return;
+
+  current = { id: added.id, name: added.name, markdown: markdownNow() };
+  showName();
+  markEditorSaved();
+  updateMeta();
+  onToast?.(`Kept as ${added.name} in your documents.`);
+}
+
+function applyRename(): void {
+  if (!dom || !current?.id) return;
+  const wanted = dom.rename.value.trim();
+  if (!wanted || wanted === current.name) {
+    dom.rename.value = current.name;
+    return;
+  }
+
+  const finalName = onRename?.(current.id, wanted);
+  if (!finalName) {
+    dom.rename.value = current.name;
+    return;
+  }
+  current.name = finalName;
+  dom.rename.value = finalName;
+  if (finalName !== wanted) onToast?.(`A document was already called that, so this one is ${finalName}.`);
 }
 
 /* ------------------------------------------------------------------- mode */

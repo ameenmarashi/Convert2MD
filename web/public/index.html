@@ -129,11 +129,20 @@
     <input type="file" id="md-input" accept=".md,.markdown,.mdx,.mdown,text/markdown" class="visually-hidden">
     <div class="dropzone__actions">
       <button type="button" id="choose-button" class="button button--primary">Choose files</button>
+      <button type="button" id="new-button" class="button">Start a new document</button>
       <button type="button" id="open-md-button" class="button">Open a .md file</button>
       <button type="button" id="paste-button" class="button button--ghost">Paste from clipboard</button>
     </div>
     <p class="dropzone__note dropzone__note--privacy">Nothing is uploaded, collected, or used to train any AI. Every conversion runs in this tab. <a href="#privacy">How that works →</a></p>
     <p class="dropzone__note">Already have Markdown — from ChatGPT, Claude or anywhere else? <strong>Open a .md file</strong> reads it as a formatted document.</p>
+  </section>
+
+  <section id="library" class="library" aria-labelledby="library-title" hidden>
+    <div class="library__bar">
+      <h2 id="library-title">Your documents</h2>
+      <span id="library-note" class="library__note"></span>
+    </div>
+    <ul id="library-list" class="library__list"></ul>
   </section>
 
   <details class="panel" id="settings-panel">
@@ -426,6 +435,7 @@
     <button type="button" id="reader-close" class="button button--icon button--small" aria-label="Close the document" title="Close">✕</button>
     <div class="reader__heading">
       <strong id="reader-name">document.md</strong>
+      <input type="text" id="reader-rename" class="reader__rename" hidden aria-label="Document name" maxlength="120">
       <span id="reader-meta" class="reader__meta"></span>
     </div>
     <div class="reader__actions">
@@ -436,8 +446,10 @@
       <button type="button" id="reader-contents" class="button button--small button--ghost" aria-expanded="false">Contents</button>
       <button type="button" id="reader-smaller" class="button button--icon button--small" aria-label="Smaller text" title="Smaller text">A−</button>
       <button type="button" id="reader-larger" class="button button--icon button--small" aria-label="Larger text" title="Larger text">A+</button>
+      <button type="button" id="reader-save" class="button button--small button--primary" hidden>Save</button>
+      <button type="button" id="reader-keep" class="button button--small button--ghost" hidden>Keep in app</button>
       <button type="button" id="reader-copy" class="button button--small button--ghost">Copy</button>
-      <button type="button" id="reader-download" class="button button--small button--ghost">Save</button>
+      <button type="button" id="reader-download" class="button button--small button--ghost">Download</button>
       <button type="button" id="reader-print" class="button button--small button--ghost">Print / PDF</button>
     </div>
   </header>

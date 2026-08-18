@@ -3,6 +3,15 @@
 import { ConversionResult, ConvertOptions, DEFAULT_OPTIONS, ImageMode } from './core/types.js';
 import { SUPPORTED_EXTENSIONS } from './core/convert.js';
 import { writeZip } from './core/zip.js';
+import {
+  createDocument,
+  deleteDocument,
+  importDocument,
+  listDocuments,
+  readDocument,
+  renameDocument,
+  saveDocument,
+} from './core/library.js';
 import { renderMarkdown } from './ui/markdown-preview.js';
 import { initReader, openReader, type ReaderDocument } from './ui/reader.js';
 import { editorIsDirty } from './ui/editor.js';
@@ -37,6 +46,10 @@ const dom = {
   pasteButton: byId<HTMLButtonElement>('paste-button'),
   mdInput: byId<HTMLInputElement>('md-input'),
   openMdButton: byId<HTMLButtonElement>('open-md-button'),
+  newButton: byId<HTMLButtonElement>('new-button'),
+  library: byId<HTMLElement>('library'),
+  libraryList: byId<HTMLUListElement>('library-list'),
+  libraryNote: byId<HTMLElement>('library-note'),
   resultsSection: byId<HTMLElement>('results-section'),
   resultsList: byId<HTMLUListElement>('results-list'),
   resultsTitle: byId<HTMLElement>('results-title'),
@@ -65,7 +78,36 @@ function init(): void {
     copy: (markdown) => void copyText(markdown),
     download: (opened: ReaderDocument) => saveBlob(markdownBlob(opened.markdown), opened.name),
     toast: (message: string) => toast(message),
+    save: (opened) => {
+      try {
+        saveDocument(opened.id, opened.name, opened.markdown);
+        renderLibrary();
+      } catch (error) {
+        toast(error instanceof Error ? error.message : 'The document could not be saved.');
+      }
+    },
+    keep: (opened) => {
+      try {
+        const kept = importDocument(opened.name, opened.markdown);
+        renderLibrary();
+        return { id: kept.id, name: kept.name };
+      } catch (error) {
+        toast(error instanceof Error ? error.message : 'The document could not be saved.');
+        return null;
+      }
+    },
+    rename: (id, name) => {
+      try {
+        const finalName = renameDocument(id, name);
+        renderLibrary();
+        return finalName;
+      } catch (error) {
+        toast(error instanceof Error ? error.message : 'The document could not be renamed.');
+        return null;
+      }
+    },
   });
+  renderLibrary();
   bindSettings();
   bindIntake();
   bindGlobalActions();
@@ -93,6 +135,8 @@ function bindIntake(): void {
     if (dom.fileInput.files) void addFiles([...dom.fileInput.files]);
     dom.fileInput.value = '';
   });
+
+  dom.newButton.addEventListener('click', () => startNewDocument());
 
   dom.openMdButton.addEventListener('click', () => dom.mdInput.click());
   dom.mdInput.addEventListener('change', () => {
@@ -255,6 +299,96 @@ function applyTheme(theme: string): void {
   else document.documentElement.setAttribute('data-theme', theme);
   dom.themeIcon.textContent = theme === 'light' ? '☀' : theme === 'dark' ? '☾' : '◐';
   dom.themeButton.title = `Colour theme: ${theme}`;
+}
+
+/* ---------------------------------------------------------------- library */
+
+/**
+ * The documents this device is holding.
+ *
+ * iOS gives a web app no folder to browse, so without this a document written
+ * here would have nowhere to live between visits. Listing them in the app is
+ * how you see your own files on an iPhone or iPad at all.
+ */
+function renderLibrary(): void {
+  const documents = listDocuments();
+  dom.library.hidden = documents.length === 0;
+  if (documents.length === 0) return;
+
+  dom.libraryNote.textContent = `${documents.length} on this device`;
+  dom.libraryList.replaceChildren();
+
+  for (const document_ of documents) {
+    const item = document.createElement('li');
+    item.className = 'library__item';
+
+    const open = document.createElement('button');
+    open.type = 'button';
+    open.className = 'library__open';
+    open.addEventListener('click', () => openFromLibrary(document_.id));
+
+    const name = document.createElement('span');
+    name.className = 'library__name';
+    name.textContent = document_.name;
+
+    const meta = document.createElement('span');
+    meta.className = 'library__meta';
+    const words = document_.words === 1 ? '1 word' : `${document_.words.toLocaleString()} words`;
+    meta.textContent = `${words} · ${describeWhen(document_.updated)}`;
+
+    open.append(name, meta);
+
+    const remove = document.createElement('button');
+    remove.type = 'button';
+    remove.className = 'button button--icon button--small library__delete';
+    remove.textContent = '✕';
+    remove.title = `Delete ${document_.name}`;
+    remove.setAttribute('aria-label', `Delete ${document_.name}`);
+    remove.addEventListener('click', () => {
+      if (!window.confirm(`Delete ${document_.name}? This cannot be undone.`)) return;
+      deleteDocument(document_.id);
+      renderLibrary();
+      toast(`${document_.name} deleted.`);
+    });
+
+    item.append(open, remove);
+    dom.libraryList.append(item);
+  }
+}
+
+function openFromLibrary(id: string): void {
+  const document_ = readDocument(id);
+  if (!document_) {
+    toast('That document is no longer on this device.');
+    renderLibrary();
+    return;
+  }
+  openReader({ id: document_.id, name: document_.name, markdown: document_.markdown });
+}
+
+function startNewDocument(): void {
+  try {
+    const created = createDocument();
+    renderLibrary();
+    // Straight into the editor: a new document has nothing to read yet.
+    openReader({ id: created.id, name: created.name, markdown: created.markdown }, { edit: true });
+  } catch (error) {
+    toast(error instanceof Error ? error.message : 'A new document could not be started.');
+  }
+}
+
+function describeWhen(timestamp: number): string {
+  const elapsed = Date.now() - timestamp;
+  const minutes = Math.round(elapsed / 60_000);
+  if (minutes < 1) return 'just now';
+  if (minutes < 60) return `${minutes} min ago`;
+
+  const hours = Math.round(minutes / 60);
+  if (hours < 24) return `${hours} h ago`;
+
+  const days = Math.round(hours / 24);
+  if (days <= 7) return `${days} d ago`;
+  return new Date(timestamp).toLocaleDateString();
 }
 
 /* ------------------------------------------------------------- conversion */

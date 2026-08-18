@@ -4,12 +4,14 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../l10n/app_localizations.dart';
+import '../core/document_library.dart';
 import '../core/text_decode.dart';
 import '../platform/opened_files.dart';
 import '../state/conversion_provider.dart';
 import '../state/settings_provider.dart';
 import 'explainers.dart';
 import 'file_service.dart';
+import 'library_section.dart';
 import 'reader_page.dart';
 import 'result_card.dart';
 import 'settings_sheet.dart';
@@ -23,9 +25,11 @@ class HomePage extends ConsumerStatefulWidget {
 
 class _HomePageState extends ConsumerState<HomePage> {
   static const FileService _files = FileService();
+  static const DocumentLibrary _library = DocumentLibrary();
 
   final OpenedFiles _opened = OpenedFiles();
   StreamSubscription<OpenedFile>? _subscription;
+  List<DocumentInfo> _documents = const [];
 
   @override
   void initState() {
@@ -33,6 +37,7 @@ class _HomePageState extends ConsumerState<HomePage> {
     // "Open with" from Files, Finder, Drive or a file manager: both the file
     // the app was launched with and any that arrive while it is running.
     _subscription = _opened.stream.listen(_receive);
+    unawaited(_refreshLibrary());
     WidgetsBinding.instance.addPostFrameCallback((_) async {
       for (final file in await _opened.initial()) {
         if (mounted) await _receive(file);
@@ -94,9 +99,19 @@ class _HomePageState extends ConsumerState<HomePage> {
                   return Column(
                     crossAxisAlignment: CrossAxisAlignment.stretch,
                     children: [
-                      PickerCard(onPick: _pick, onOpenMarkdown: _openMarkdown),
+                      PickerCard(
+                        onPick: _pick,
+                        onNewDocument: _startNewDocument,
+                        onOpenMarkdown: _openMarkdown,
+                      ),
                       const SizedBox(height: 16),
-                      if (entries.isEmpty) EmptyState(message: l10n.emptyState),
+                      LibrarySection(
+                        documents: _documents,
+                        onOpen: _openFromLibrary,
+                        onDelete: _deleteFromLibrary,
+                      ),
+                      if (entries.isEmpty && _documents.isEmpty)
+                        EmptyState(message: l10n.emptyState),
                     ],
                   );
                 }
@@ -133,6 +148,49 @@ class _HomePageState extends ConsumerState<HomePage> {
     await ref.read(conversionProvider.notifier).addFiles(rest, options);
   }
 
+  /* ---------------------------------------------------------------- library */
+
+  Future<void> _refreshLibrary() async {
+    final documents = await _library.list();
+    if (mounted) setState(() => _documents = documents);
+  }
+
+  Future<void> _startNewDocument() async {
+    final created = await _library.create();
+    await _refreshLibrary();
+    if (!mounted) return;
+    // Straight into the editor: a new document has nothing to read yet.
+    await ReaderPage.open(
+      context,
+      name: created.name,
+      markdown: await _library.read(created.path) ?? '',
+      path: created.path,
+      startEditing: true,
+    );
+    await _refreshLibrary();
+  }
+
+  Future<void> _openFromLibrary(DocumentInfo document) async {
+    final markdown = await _library.read(document.path);
+    if (markdown == null) {
+      await _refreshLibrary();
+      return;
+    }
+    if (!mounted) return;
+    await ReaderPage.open(context, name: document.name, markdown: markdown, path: document.path);
+    await _refreshLibrary();
+  }
+
+  Future<void> _deleteFromLibrary(DocumentInfo document) async {
+    await _library.delete(document.path);
+    await _refreshLibrary();
+    if (mounted) {
+      ScaffoldMessenger.of(context)
+        ..clearSnackBars()
+        ..showSnackBar(SnackBar(content: Text(AppLocalizations.of(context).deleted(document.name))));
+    }
+  }
+
   Future<void> _openMarkdown() async {
     final file = await _files.pickMarkdown();
     if (file != null) await _read(file);
@@ -153,13 +211,21 @@ class _HomePageState extends ConsumerState<HomePage> {
     final markdown = decodeText(file.bytes).text;
     if (!mounted) return;
     await ReaderPage.open(context, name: file.name, markdown: markdown);
+    // It may have been kept while open, so the listing is refreshed either way.
+    await _refreshLibrary();
   }
 }
 
 class PickerCard extends StatelessWidget {
-  const PickerCard({required this.onPick, required this.onOpenMarkdown, super.key});
+  const PickerCard({
+    required this.onPick,
+    required this.onNewDocument,
+    required this.onOpenMarkdown,
+    super.key,
+  });
 
   final VoidCallback onPick;
+  final VoidCallback onNewDocument;
   final VoidCallback onOpenMarkdown;
 
   @override
@@ -183,6 +249,11 @@ class PickerCard extends StatelessWidget {
                   onPressed: onPick,
                   icon: const Icon(Icons.add),
                   label: Text(l10n.chooseFiles),
+                ),
+                OutlinedButton.icon(
+                  onPressed: onNewDocument,
+                  icon: const Icon(Icons.note_add_outlined),
+                  label: Text(l10n.newDocument),
                 ),
                 OutlinedButton.icon(
                   onPressed: onOpenMarkdown,

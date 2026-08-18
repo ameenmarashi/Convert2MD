@@ -6,6 +6,7 @@ import 'package:flutter_markdown/flutter_markdown.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../../l10n/app_localizations.dart';
+import '../core/document_library.dart';
 import '../core/markdown_editing.dart';
 import 'editor_toolbar.dart';
 import 'file_service.dart';
@@ -17,15 +18,38 @@ import 'file_service.dart';
 /// one comfortable measure, a contents list built from the headings, and a
 /// text size that persists for the session.
 class ReaderPage extends StatefulWidget {
-  const ReaderPage({required this.name, required this.markdown, super.key});
+  const ReaderPage({
+    required this.name,
+    required this.markdown,
+    this.path,
+    this.startEditing = false,
+    super.key,
+  });
 
   final String name;
   final String markdown;
 
-  static Future<void> open(BuildContext context, {required String name, required String markdown}) {
+  /// Set when the document is a file in the app's library, and so can be saved
+  /// back to where it came from and renamed in place.
+  final String? path;
+
+  final bool startEditing;
+
+  static Future<void> open(
+    BuildContext context, {
+    required String name,
+    required String markdown,
+    String? path,
+    bool startEditing = false,
+  }) {
     return Navigator.of(context).push(
       MaterialPageRoute<void>(
-        builder: (_) => ReaderPage(name: name, markdown: markdown),
+        builder: (_) => ReaderPage(
+          name: name,
+          markdown: markdown,
+          path: path,
+          startEditing: startEditing,
+        ),
       ),
     );
   }
@@ -43,17 +67,25 @@ class _ReaderPageState extends State<ReaderPage> {
 
   static const String _draftPrefix = 'md-converter.draft.';
   static const Duration _previewDelay = Duration(milliseconds: 160);
+  static const DocumentLibrary _library = DocumentLibrary();
 
   final ScrollController _scroll = ScrollController();
   late final TextEditingController _controller = TextEditingController(text: widget.markdown);
+  late final TextEditingController _nameController = TextEditingController(text: widget.name);
   late final FocusNode _inputFocus = FocusNode();
 
   late List<_Heading> _headings = _outlineOf(widget.markdown);
   late String _baseline = widget.markdown;
   late String _rendered = widget.markdown;
 
-  bool _editing = false;
+  late String _name = widget.name;
+  late String? _path = widget.path;
+  late bool _editing = widget.startEditing;
   Timer? _previewTimer;
+
+  /// True when the document is a file in the library, so Save writes back to
+  /// it and the title can be renamed in place.
+  bool get _inLibrary => _path != null;
 
   @override
   void initState() {
@@ -67,6 +99,7 @@ class _ReaderPageState extends State<ReaderPage> {
     _previewTimer?.cancel();
     _controller.removeListener(_onTextChanged);
     _controller.dispose();
+    _nameController.dispose();
     _inputFocus.dispose();
     _scroll.dispose();
     super.dispose();
@@ -81,7 +114,7 @@ class _ReaderPageState extends State<ReaderPage> {
   /// saved, and it never leaves the device.
   Future<void> _restoreDraft() async {
     final store = await SharedPreferences.getInstance();
-    final draft = store.getString('$_draftPrefix${widget.name}');
+    final draft = store.getString('\$_draftPrefix\$_name');
     if (draft == null || draft == widget.markdown || !mounted) return;
 
     _controller.text = draft;
@@ -94,12 +127,12 @@ class _ReaderPageState extends State<ReaderPage> {
 
   Future<void> _saveDraft() async {
     final store = await SharedPreferences.getInstance();
-    await store.setString('$_draftPrefix${widget.name}', _markdown);
+    await store.setString('\$_draftPrefix\$_name', _markdown);
   }
 
   Future<void> _clearDraft() async {
     final store = await SharedPreferences.getInstance();
-    await store.remove('$_draftPrefix${widget.name}');
+    await store.remove('\$_draftPrefix\$_name');
   }
 
   void _onTextChanged() {
@@ -134,7 +167,23 @@ class _ReaderPageState extends State<ReaderPage> {
             crossAxisAlignment: CrossAxisAlignment.start,
             mainAxisSize: MainAxisSize.min,
             children: [
-              Text(widget.name, style: theme.textTheme.titleSmall, overflow: TextOverflow.ellipsis),
+              // A library document is renamed by typing over its title — on
+              // iOS there is no folder to go and rename it in.
+              if (_inLibrary)
+                TextField(
+                  controller: _nameController,
+                  style: theme.textTheme.titleSmall,
+                  decoration: InputDecoration(
+                    isDense: true,
+                    border: InputBorder.none,
+                    contentPadding: EdgeInsets.zero,
+                    hintText: l10n.documentName,
+                  ),
+                  onSubmitted: (_) => unawaited(_applyRename()),
+                  onTapOutside: (_) => unawaited(_applyRename()),
+                )
+              else
+                Text(_name, style: theme.textTheme.titleSmall, overflow: TextOverflow.ellipsis),
               Text(_describe(l10n), style: theme.textTheme.labelSmall),
             ],
           ),
@@ -168,11 +217,19 @@ class _ReaderPageState extends State<ReaderPage> {
               tooltip: l10n.readerLarger,
               onPressed: _scaleIndex == _scales.length - 1 ? null : () => setState(() => _scaleIndex++),
             ),
+            if (_inLibrary)
+              IconButton(
+                icon: const Icon(Icons.save_outlined),
+                tooltip: l10n.save,
+                onPressed: _dirty ? () => unawaited(_saveToLibrary()) : null,
+              ),
             PopupMenuButton<_ReaderAction>(
               onSelected: _run,
               itemBuilder: (context) => [
+                if (!_inLibrary)
+                  PopupMenuItem(value: _ReaderAction.keep, child: Text(l10n.keepInApp)),
                 PopupMenuItem(value: _ReaderAction.copy, child: Text(l10n.copy)),
-                PopupMenuItem(value: _ReaderAction.save, child: Text(l10n.save)),
+                PopupMenuItem(value: _ReaderAction.export, child: Text(l10n.exportCopy)),
               ],
             ),
           ],
@@ -397,17 +454,73 @@ class _ReaderPageState extends State<ReaderPage> {
 
   void _run(_ReaderAction action) {
     switch (action) {
+      case _ReaderAction.keep:
+        unawaited(_keepInLibrary());
       case _ReaderAction.copy:
         Clipboard.setData(ClipboardData(text: _markdown));
         _tell(AppLocalizations.of(context).copied);
-      case _ReaderAction.save:
+      case _ReaderAction.export:
         unawaited(_save());
+    }
+  }
+
+  /// Writes the document back to its file in the library.
+  Future<void> _saveToLibrary() async {
+    final path = _path;
+    if (path == null) return;
+
+    final l10n = AppLocalizations.of(context);
+    await _library.saveAt(path, _markdown);
+    await _clearDraft();
+    if (!mounted) return;
+    setState(() => _baseline = _markdown);
+    _tell(l10n.savedToDevice);
+  }
+
+  /// Adds a document that came from a file to the library, so it has somewhere
+  /// to live between sessions.
+  Future<void> _keepInLibrary() async {
+    final l10n = AppLocalizations.of(context);
+    final kept = await _library.import(_name, _markdown);
+    if (!mounted) return;
+
+    setState(() {
+      _path = kept.path;
+      _name = kept.name;
+      _baseline = _markdown;
+    });
+    _nameController.text = kept.name;
+    _tell(l10n.keptAs(kept.name));
+  }
+
+  Future<void> _applyRename() async {
+    final path = _path;
+    final wanted = _nameController.text.trim();
+    if (path == null || wanted.isEmpty || wanted == _name) {
+      _nameController.text = _name;
+      return;
+    }
+
+    final l10n = AppLocalizations.of(context);
+    final renamed = await _library.rename(path, wanted);
+    if (renamed == null || !mounted) {
+      _nameController.text = _name;
+      return;
+    }
+
+    setState(() {
+      _path = renamed.path;
+      _name = renamed.name;
+    });
+    _nameController.text = renamed.name;
+    if (renamed.name != DocumentLibrary.normaliseName(wanted)) {
+      _tell(l10n.renameCollision(renamed.name));
     }
   }
 
   Future<void> _save() async {
     final l10n = AppLocalizations.of(context);
-    final destination = await _files.save(widget.name, _markdown);
+    final destination = await _files.save(_name, _markdown);
     if (destination == null || !mounted) return;
 
     // Saving is how a document leaves the app, so it is what "saved" means
@@ -470,7 +583,7 @@ class _ReaderPageState extends State<ReaderPage> {
   }
 }
 
-enum _ReaderAction { copy, save }
+enum _ReaderAction { keep, copy, export }
 
 /// One labelled half of the editor — the text, or what it will look like.
 class _EditorPane extends StatelessWidget {
