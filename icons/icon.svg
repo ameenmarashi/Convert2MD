@@ -1,4 +1,5 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512" role="img" aria-label="MD Converter">
+  <title>MD Converter</title>
   <defs>
     <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
       <stop offset="0" stop-color="#6366f1"/>
@@ -6,9 +7,9 @@
     </linearGradient>
   </defs>
   <rect width="512" height="512" rx="114" fill="url(#bg)"/>
-  <path d="M152 96h130l104 104v216a24 24 0 0 1-24 24H152a24 24 0 0 1-24-24V120a24 24 0 0 1 24-24z" fill="#ffffff"/>
-  <path d="M282 96l104 104h-88a16 16 0 0 1-16-16z" fill="#c7d2fe"/>
-  <path d="M256 236v88" stroke="#4f46e5" stroke-width="26" stroke-linecap="round" fill="none"/>
-  <path d="M214 284l42 42 42-42" stroke="#4f46e5" stroke-width="26" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
-  <rect x="196" y="356" width="120" height="22" rx="11" fill="#4f46e5"/>
+  <g fill="none" stroke="#ffffff" stroke-width="46" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M92.7 332.8V179.2L161.5 280l68.8-100.8v153.6"/>
+    <path d="M309.6 179.2v153.6"/>
+    <path d="M309.6 179.2h32.9a76.8 76.8 0 0 1 0 153.6h-32.9"/>
+  </g>
 </svg>

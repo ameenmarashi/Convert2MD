@@ -17,6 +17,22 @@
 <link rel="icon" href="icons/icon.svg" type="image/svg+xml">
 <link rel="alternate icon" href="icons/icon-192.png">
 <link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+<link rel="apple-touch-startup-image" href="icons/launch-1290x2796-light.png" media="(device-width: 430px) and (device-height: 932px) and (-webkit-device-pixel-ratio: 3)">
+<link rel="apple-touch-startup-image" href="icons/launch-1290x2796-dark.png" media="(device-width: 430px) and (device-height: 932px) and (-webkit-device-pixel-ratio: 3) and (prefers-color-scheme: dark)">
+<link rel="apple-touch-startup-image" href="icons/launch-1179x2556-light.png" media="(device-width: 393px) and (device-height: 852px) and (-webkit-device-pixel-ratio: 3)">
+<link rel="apple-touch-startup-image" href="icons/launch-1179x2556-dark.png" media="(device-width: 393px) and (device-height: 852px) and (-webkit-device-pixel-ratio: 3) and (prefers-color-scheme: dark)">
+<link rel="apple-touch-startup-image" href="icons/launch-1170x2532-light.png" media="(device-width: 390px) and (device-height: 844px) and (-webkit-device-pixel-ratio: 3)">
+<link rel="apple-touch-startup-image" href="icons/launch-1170x2532-dark.png" media="(device-width: 390px) and (device-height: 844px) and (-webkit-device-pixel-ratio: 3) and (prefers-color-scheme: dark)">
+<link rel="apple-touch-startup-image" href="icons/launch-1125x2436-light.png" media="(device-width: 375px) and (device-height: 812px) and (-webkit-device-pixel-ratio: 3)">
+<link rel="apple-touch-startup-image" href="icons/launch-1125x2436-dark.png" media="(device-width: 375px) and (device-height: 812px) and (-webkit-device-pixel-ratio: 3) and (prefers-color-scheme: dark)">
+<link rel="apple-touch-startup-image" href="icons/launch-828x1792-light.png" media="(device-width: 414px) and (device-height: 896px) and (-webkit-device-pixel-ratio: 2)">
+<link rel="apple-touch-startup-image" href="icons/launch-828x1792-dark.png" media="(device-width: 414px) and (device-height: 896px) and (-webkit-device-pixel-ratio: 2) and (prefers-color-scheme: dark)">
+<link rel="apple-touch-startup-image" href="icons/launch-750x1334-light.png" media="(device-width: 375px) and (device-height: 667px) and (-webkit-device-pixel-ratio: 2)">
+<link rel="apple-touch-startup-image" href="icons/launch-750x1334-dark.png" media="(device-width: 375px) and (device-height: 667px) and (-webkit-device-pixel-ratio: 2) and (prefers-color-scheme: dark)">
+<link rel="apple-touch-startup-image" href="icons/launch-1536x2048-light.png" media="(device-width: 768px) and (device-height: 1024px) and (-webkit-device-pixel-ratio: 2)">
+<link rel="apple-touch-startup-image" href="icons/launch-1536x2048-dark.png" media="(device-width: 768px) and (device-height: 1024px) and (-webkit-device-pixel-ratio: 2) and (prefers-color-scheme: dark)">
+<link rel="apple-touch-startup-image" href="icons/launch-2048x2732-light.png" media="(device-width: 1024px) and (device-height: 1366px) and (-webkit-device-pixel-ratio: 2)">
+<link rel="apple-touch-startup-image" href="icons/launch-2048x2732-dark.png" media="(device-width: 1024px) and (device-height: 1366px) and (-webkit-device-pixel-ratio: 2) and (prefers-color-scheme: dark)">
 <link rel="stylesheet" href="styles.css">
 </head>
 <body>
@@ -56,6 +72,15 @@
       <span class="panel__chevron" aria-hidden="true">▾</span>
     </summary>
     <div class="panel__body">
+      <details class="nutshell">
+        <summary class="nutshell__summary">Why Markdown, in a nutshell</summary>
+        <div class="nutshell__body">
+          <p>Markdown is plain text with a handful of marks for structure — <code>#</code> for a heading, <code>-</code> for a list item. That is the whole format.</p>
+          <p>It outlives the software that wrote it, keeps structure without dragging fonts and page margins along, and is the format AI tools, search indexes and site generators read directly. One small file, no container, no hidden revision history.</p>
+          <p><a href="#why-markdown">The longer version →</a></p>
+        </div>
+      </details>
+
       <div class="field">
         <label class="switch">
           <input type="checkbox" id="opt-frontmatter" checked>
@@ -152,22 +177,94 @@
     <ul id="results-list" class="results__list"></ul>
   </section>
 
-  <section class="about" id="about">
-    <h2>Works offline, keeps your files private</h2>
+  <section class="explainer" id="why-markdown" aria-labelledby="why-markdown-title">
+    <h2 id="why-markdown-title">Why Markdown, in a nutshell</h2>
+    <p class="explainer__lede">Markdown is plain text with a handful of marks for structure — <code>#</code> for a heading, <code>-</code> for a list item, <code>|</code> for a table. That is the whole format, and it is why it lasts.</p>
+
+    <ol class="reasons">
+      <li>
+        <h3>It outlives the software that wrote it</h3>
+        <p>A <code>.docx</code> needs Word. A <code>.md</code> file opens in any text editor, on any device, in twenty years.</p>
+      </li>
+      <li>
+        <h3>Structure survives; styling gets out of the way</h3>
+        <p>Headings, lists, tables and links are kept as meaning. Fonts, margins and page breaks — which only ever served the printed page — are dropped.</p>
+      </li>
+      <li>
+        <h3>It is what AI tools read best</h3>
+        <p>Language models, retrieval pipelines, static site generators and note apps take Markdown directly, with no conversion layer in between.</p>
+      </li>
+      <li>
+        <h3>It is searchable, diffable, versionable</h3>
+        <p>Plain text means <code>grep</code> finds it and Git tracks every change line by line — so you can see exactly what moved between two drafts.</p>
+      </li>
+      <li>
+        <h3>It is one small file</h3>
+        <p>No zip container, no embedded metadata, no tracked changes or comment threads travelling silently with the document.</p>
+      </li>
+    </ol>
+
+    <p class="explainer__close">Converting to Markdown keeps the content and drops everything that was only there to serve the page.</p>
+  </section>
+
+  <section class="about" id="about" aria-labelledby="about-title">
+    <h2 id="about-title">What this app does</h2>
+    <p class="about__lede">Drop a document in; get a Markdown file out. Every conversion runs on this device — there is no server, nothing is uploaded, and no account is needed.</p>
+
+    <ol class="steps">
+      <li>
+        <span class="steps__number" aria-hidden="true">1</span>
+        <h3>Reads the real file</h3>
+        <p>It opens the actual container — the OOXML parts inside a <code>.docx</code>, the object graph inside a PDF — rather than scraping visible text.</p>
+      </li>
+      <li>
+        <span class="steps__number" aria-hidden="true">2</span>
+        <h3>Recovers the structure</h3>
+        <p>Headings, ordered and bulleted lists, tables, links, footnotes, speaker notes and images are identified. In PDFs, which carry no structure at all, headings and paragraphs are inferred from font size and layout, and repeating headers and footers are dropped.</p>
+      </li>
+      <li>
+        <span class="steps__number" aria-hidden="true">3</span>
+        <h3>Writes clean Markdown</h3>
+        <p>Preview it, copy it, download it, or export everything at once as a <code>.zip</code>. Optional YAML front matter records the title, author and source file.</p>
+      </li>
+    </ol>
+
+    <h3 class="about__subhead">What you can convert</h3>
+    <ul class="formats">
+      <li>PDF</li>
+      <li>Word · .docx</li>
+      <li>Excel · .xlsx</li>
+      <li>PowerPoint · .pptx</li>
+      <li>Google Docs, Sheets &amp; Slides exports</li>
+      <li>OpenDocument · .odt .ods .odp</li>
+      <li>EPUB</li>
+      <li>RTF</li>
+      <li>HTML</li>
+      <li>Email · .eml</li>
+      <li>CSV &amp; TSV</li>
+      <li>Text, Markdown, JSON, YAML</li>
+      <li>Subtitles · .srt .vtt</li>
+      <li>Source code</li>
+      <li>Images</li>
+    </ul>
+
     <div class="about__grid">
       <article>
-        <h3>Installed = offline</h3>
-        <p>Add it to your Home Screen or Dock and every part of the app — including the PDF and Word engines — is stored on the device. No connection is needed again.</p>
-      </article>
-      <article>
         <h3>Nothing leaves the device</h3>
-        <p>There is no server and no upload. Files are read in the browser tab, converted there, and forgotten when you close it.</p>
+        <p>There is no server and no upload. Files are read in this tab, converted here, and forgotten when you close it — which is what makes it safe for patient records, contracts and anything else confidential.</p>
       </article>
       <article>
-        <h3>Reads documents properly</h3>
-        <p>Headings, lists, tables, links, footnotes, speaker notes and images are carried across — not just raw text. Google Docs, Sheets and Slides downloads are handled too.</p>
+        <h3>Installed means offline</h3>
+        <p>Add it to your Home Screen or Dock and the whole app — including the PDF and Word engines — is stored on the device. It keeps working on a plane, in a basement, with the network off.</p>
+      </article>
+      <article>
+        <h3>Built to read documents properly</h3>
+        <p>Every parser is written into the app itself: no libraries fetched at runtime, nothing to load before it can work. That is what lets it run with no connection at all.</p>
       </article>
     </div>
+
+    <h3 class="about__subhead">Install it</h3>
+    <p class="about__install"><strong>iPhone and iPad:</strong> Share → Add to Home Screen. <strong>macOS Safari:</strong> File → Add to Dock. <strong>Chrome and Edge:</strong> the install icon in the address bar.</p>
   </section>
 </main>
 

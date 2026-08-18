@@ -1,0 +1,98 @@
+[
+  {
+    "name": "launch-1290x2796-light.png",
+    "width": 1290,
+    "height": 2796,
+    "scheme": "light"
+  },
+  {
+    "name": "launch-1290x2796-dark.png",
+    "width": 1290,
+    "height": 2796,
+    "scheme": "dark"
+  },
+  {
+    "name": "launch-1179x2556-light.png",
+    "width": 1179,
+    "height": 2556,
+    "scheme": "light"
+  },
+  {
+    "name": "launch-1179x2556-dark.png",
+    "width": 1179,
+    "height": 2556,
+    "scheme": "dark"
+  },
+  {
+    "name": "launch-1170x2532-light.png",
+    "width": 1170,
+    "height": 2532,
+    "scheme": "light"
+  },
+  {
+    "name": "launch-1170x2532-dark.png",
+    "width": 1170,
+    "height": 2532,
+    "scheme": "dark"
+  },
+  {
+    "name": "launch-1125x2436-light.png",
+    "width": 1125,
+    "height": 2436,
+    "scheme": "light"
+  },
+  {
+    "name": "launch-1125x2436-dark.png",
+    "width": 1125,
+    "height": 2436,
+    "scheme": "dark"
+  },
+  {
+    "name": "launch-828x1792-light.png",
+    "width": 828,
+    "height": 1792,
+    "scheme": "light"
+  },
+  {
+    "name": "launch-828x1792-dark.png",
+    "width": 828,
+    "height": 1792,
+    "scheme": "dark"
+  },
+  {
+    "name": "launch-750x1334-light.png",
+    "width": 750,
+    "height": 1334,
+    "scheme": "light"
+  },
+  {
+    "name": "launch-750x1334-dark.png",
+    "width": 750,
+    "height": 1334,
+    "scheme": "dark"
+  },
+  {
+    "name": "launch-1536x2048-light.png",
+    "width": 1536,
+    "height": 2048,
+    "scheme": "light"
+  },
+  {
+    "name": "launch-1536x2048-dark.png",
+    "width": 1536,
+    "height": 2048,
+    "scheme": "dark"
+  },
+  {
+    "name": "launch-2048x2732-light.png",
+    "width": 2048,
+    "height": 2732,
+    "scheme": "light"
+  },
+  {
+    "name": "launch-2048x2732-dark.png",
+    "width": 2048,
+    "height": 2732,
+    "scheme": "dark"
+  }
+]
