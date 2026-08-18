@@ -37,6 +37,11 @@ Published from `web/public` by `.github/workflows/deploy-pages.yml` on every
 push that touches `web/`. The workflow compiles the TypeScript, runs the test
 suite, and only then deploys — a failing test blocks the release.
 
+**One-time setup:** in *Settings → Pages → Build and deployment*, set **Source**
+to **GitHub Actions**. The Actions token cannot create the Pages site itself, so
+this switch has to be flipped once; after that every push deploys on its own.
+Re-run the latest workflow from the Actions tab to publish immediately.
+
 GitHub Pages serves this at a sub-path, which the app is built for: every URL is
 relative, the service worker scopes itself to `/Convert2MD/`, and the manifest
 uses `./` for `start_url` and `scope`.
