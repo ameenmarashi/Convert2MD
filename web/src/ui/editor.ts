@@ -274,11 +274,17 @@ function applyLineMark({ prefix, matcher }: LineMark): void {
 
   const lines = value.slice(start, end).split('\n');
   const ordered = /^\d+\. $/.test(prefix);
-  const allMarked = lines.every((line) => !line.trim() || matcher.test(line));
+  const content = lines.filter((line) => line.trim());
+
+  // A selection with nothing in it is someone starting a list on an empty
+  // line, so the mark goes on rather than coming off. Blank lines are only
+  // left alone when there is other content around them to separate.
+  const allMarked = content.length > 0 && content.every((line) => matcher.test(line));
+  const keepBlanks = content.length > 0;
 
   let counter = 1;
   const updated = lines.map((line) => {
-    if (!line.trim()) return line;
+    if (!line.trim() && keepBlanks) return line;
     if (allMarked) return line.replace(matcher, '$1');
     // One mark at a time: a line cannot be a heading and a bullet at once.
     const bare = line.replace(/^(\s*)(?:#{1,6}\s+|[-*+]\s+\[[ xX]\]\s+|[-*+]\s+|\d+\.\s+|>\s?)/, '$1');

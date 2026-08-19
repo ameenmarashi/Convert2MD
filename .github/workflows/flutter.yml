@@ -1,0 +1,60 @@
+name: Flutter app
+
+# The Dart half used to be checked by eye, which is how a draft key that was a
+# literal string and a toolbar that crashed on an empty document both got as far
+# as a commit. This runs the analyzer and the suite on every change to it.
+
+on:
+  push:
+    paths:
+      - "flutter_app/**"
+      - ".github/workflows/flutter.yml"
+  pull_request:
+    paths:
+      - "flutter_app/**"
+  workflow_dispatch:
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: flutter_app
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          cache: true
+
+      - name: Resolve dependencies
+        run: flutter pub get
+
+      - name: Analyze
+        # No issues at all, not just no errors — the settings in
+        # analysis_options.yaml are there to be met.
+        run: flutter analyze --fatal-infos --fatal-warnings
+
+      - name: Test
+        run: flutter test
+
+      - name: Check the generated runners still take the document handlers
+        run: |
+          flutter create --platforms=android --org com.marashi --project-name md_converter .
+          tool/configure_platforms.sh
+          python3 - <<'PY'
+          import xml.etree.ElementTree as ET
+          ns = '{http://schemas.android.com/apk/res/android}'
+          root = ET.parse('android/app/src/main/AndroidManifest.xml').getroot()
+          filters = root.find('application').findall('activity')[0].findall('intent-filter')
+          actions = {a.get(ns + 'name').rsplit('.', 1)[-1] for f in filters for a in f.findall('action')}
+          missing = {'MAIN', 'VIEW', 'SEND', 'SEND_MULTIPLE'} - actions
+          raise SystemExit(f'missing intent actions: {missing}' if missing else 0)
+          PY
+
+      - name: Build the Android app
+        # The one thing a unit test cannot reach: that MainActivity.kt and the
+        # merged manifest actually compile.
+        run: flutter build apk --debug

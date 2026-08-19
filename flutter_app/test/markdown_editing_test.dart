@@ -67,6 +67,17 @@ void main() {
     test('an indented paragraph keeps its indentation', () {
       expect(run(EditorAction.bullet, '  some text|'), '[  - some text]');
     });
+
+    // A blank line counted as "already marked", so every list and heading
+    // button did nothing at all on an empty document — which is exactly where
+    // someone starting from scratch would press one first.
+    test('a mark applies to an empty line rather than toggling off', () {
+      expect(run(EditorAction.bullet, '|'), '[- ]');
+      expect(run(EditorAction.h1, '|'), '[# ]');
+      expect(run(EditorAction.number, '|'), '[1. ]');
+      expect(run(EditorAction.task, '|'), '[- [ ] ]');
+      expect(run(EditorAction.quote, '|'), '[> ]');
+    });
   });
 
   group('links', () {

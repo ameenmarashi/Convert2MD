@@ -134,6 +134,24 @@ widget tests) every call degrades to "nothing was opened" rather than throwing.
 Conversion runs on a background isolate (`compute`), so a large PDF never blocks
 the UI thread — the same reason the web app uses a Web Worker.
 
+## Checks
+
+```bash
+flutter pub get
+flutter analyze --fatal-infos --fatal-warnings   # clean
+flutter test                                     # 62 tests
+```
+
+`.github/workflows/flutter.yml` runs all three on every change to this
+directory, then generates the Android runner, applies
+`tool/configure_platforms.sh`, asserts the intent filters survived the merge,
+and builds a debug APK — which is the only way to find out that
+`MainActivity.kt` and the merged manifest actually compile.
+
+`test/app_test.dart` builds and drives the real app rather than only its pure
+functions: the home screen, the collapsed explainers, the reader, and the
+editor toolbar acting on an empty document.
+
 ## Tests
 
 ```bash

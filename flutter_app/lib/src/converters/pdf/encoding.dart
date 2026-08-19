@@ -1,5 +1,6 @@
 /// Simple-font encodings and glyph-name → Unicode mapping.
 /// Mirrors `web/src/converters/pdf/encoding.ts`.
+library;
 
 /// cp1252 additions in 0x80-0x9F; codes absent here are undefined in WinAnsi.
 const Map<int, String> _winAnsiHigh = {

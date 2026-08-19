@@ -114,7 +114,7 @@ class _ReaderPageState extends State<ReaderPage> {
   /// saved, and it never leaves the device.
   Future<void> _restoreDraft() async {
     final store = await SharedPreferences.getInstance();
-    final draft = store.getString('\$_draftPrefix\$_name');
+    final draft = store.getString('$_draftPrefix$_name');
     if (draft == null || draft == widget.markdown || !mounted) return;
 
     _controller.text = draft;
@@ -127,12 +127,12 @@ class _ReaderPageState extends State<ReaderPage> {
 
   Future<void> _saveDraft() async {
     final store = await SharedPreferences.getInstance();
-    await store.setString('\$_draftPrefix\$_name', _markdown);
+    await store.setString('$_draftPrefix$_name', _markdown);
   }
 
   Future<void> _clearDraft() async {
     final store = await SharedPreferences.getInstance();
-    await store.remove('\$_draftPrefix\$_name');
+    await store.remove('$_draftPrefix$_name');
   }
 
   void _onTextChanged() {

@@ -244,6 +244,10 @@ It uses Riverpod for state, `package:archive`/`xml`/`html` for parsing, and runs
 each conversion on a background isolate. The UI is localised (English and
 Arabic, RTL included) with no hardcoded display strings.
 
+`flutter analyze --fatal-infos --fatal-warnings` is clean and the 62 tests pass;
+`.github/workflows/flutter.yml` keeps it that way, and additionally builds a
+debug APK so the Kotlin and the merged Android manifest are compiled too.
+
 ## Branding
 
 `brand.json` at the repository root is the single source of the visual identity —

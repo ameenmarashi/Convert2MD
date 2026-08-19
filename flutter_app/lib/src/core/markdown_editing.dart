@@ -132,11 +132,17 @@ EditResult _applyLineMark(LineMark mark, String text, int start, int end) {
   final lines = text.substring(from, to).split('\n');
 
   final ordered = RegExp(r'^\d+\. $').hasMatch(prefix);
-  final allMarked = lines.every((line) => line.trim().isEmpty || matcher.hasMatch(line));
+  final content = lines.where((line) => line.trim().isNotEmpty).toList();
+
+  // A selection with nothing in it is someone starting a list on an empty
+  // line, so the mark goes on rather than coming off. Blank lines are only
+  // left alone when there is other content around them to separate.
+  final allMarked = content.isNotEmpty && content.every(matcher.hasMatch);
+  final keepBlanks = content.isNotEmpty;
 
   var counter = 1;
   final updated = lines.map((line) {
-    if (line.trim().isEmpty) return line;
+    if (line.trim().isEmpty && keepBlanks) return line;
     // Strip the mark, keep the indentation the line was sitting at.
     if (allMarked) return line.replaceFirst(matcher, _indentOf(line));
 
@@ -265,9 +271,19 @@ EditResult? indentListItems(String text, int start, int end, {required bool outd
 
 String _indentOf(String line) => RegExp(r'^\s*').firstMatch(line)!.group(0)!;
 
-int _lineStart(String text, int index) => text.lastIndexOf('\n', index - 1) + 1;
+/// Where the line containing `index` begins.
+///
+/// The bounds matter more in Dart than in the TypeScript this mirrors:
+/// JavaScript's `lastIndexOf` quietly clamps a negative start, while Dart's
+/// throws a RangeError — so a caret at position 0, which is every empty
+/// document, would have crashed the toolbar.
+int _lineStart(String text, int index) {
+  if (index <= 0) return 0;
+  return text.lastIndexOf('\n', index - 1) + 1;
+}
 
 int _lineEnd(String text, int index) {
-  final next = text.indexOf('\n', index);
+  if (index >= text.length) return text.length;
+  final next = text.indexOf('\n', index < 0 ? 0 : index);
   return next == -1 ? text.length : next;
 }

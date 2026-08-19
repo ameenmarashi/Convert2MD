@@ -279,7 +279,7 @@ class _DocxContext {
   _ParagraphResult _renderParagraph(XmlElement p, int depth) {
     final pPr = childOf(p, 'w:pPr');
     final segments = collectSegments(p);
-    final text = emitSegments(segments);
+    final text = _emitSegments(segments);
     final pageBreak =
         descendantsOf(p, 'w:br').any((br) => attrOf(br, 'w:type') == 'page');
 
@@ -586,7 +586,7 @@ class _DocxContext {
         for (final node in tc.children) {
           if (node is! XmlElement) continue;
           if (node.name.local == 'p') {
-            final text = emitSegments(collectSegments(node)).trim();
+            final text = _emitSegments(collectSegments(node)).trim();
             if (text.isNotEmpty) parts.add(text);
           } else if (node.name.local == 'tbl') {
             parts.add(collapseWhitespace(_plainText(node)));
@@ -623,7 +623,7 @@ class _DocxContext {
 }
 
 /// Merge like-formatted runs first so Word's run splitting does not leak `****`.
-String emitSegments(List<_Segment> segments) {
+String _emitSegments(List<_Segment> segments) {
   final merged = <_Segment>[];
   for (final segment in segments) {
     if (segment.text.isEmpty) continue;

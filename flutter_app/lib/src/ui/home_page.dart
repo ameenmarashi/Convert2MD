@@ -157,13 +157,15 @@ class _HomePageState extends ConsumerState<HomePage> {
 
   Future<void> _startNewDocument() async {
     final created = await _library.create();
+    final markdown = await _library.read(created.path) ?? '';
     await _refreshLibrary();
     if (!mounted) return;
+
     // Straight into the editor: a new document has nothing to read yet.
     await ReaderPage.open(
       context,
       name: created.name,
-      markdown: await _library.read(created.path) ?? '',
+      markdown: markdown,
       path: created.path,
       startEditing: true,
     );
