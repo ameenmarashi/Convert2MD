@@ -131,17 +131,24 @@ self.addEventListener('fetch', (event) => {
   event.respondWith(cacheFirst(request));
 });
 
+/**
+ * Cache-first, deliberately: everything else on this page (`main.js` and the
+ * modules it imports) is served cache-first too, from this same `CACHE_NAME`.
+ * Fetching a fresh `index.html` from the network on every visit would hand out
+ * markup for features the cached JS — an older build, still active until the
+ * update button is pressed — knows nothing about. A new "Photo" button with no
+ * listener behind it is exactly that mismatch: it looks present and does
+ * nothing when pressed. Serving HTML and JS out of the same cache keeps them
+ * one build, matching what the update banner already promises.
+ */
 async function handleNavigation(request) {
   const cache = await caches.open(CACHE_NAME);
-  try {
-    const response = await fetch(request);
-    if (response.ok) cache.put('./index.html', response.clone());
-    return response;
-  } catch (error) {
-    const cached = (await cache.match('./index.html')) || (await cache.match('./'));
-    if (cached) return cached;
-    throw error;
-  }
+  const cached = (await cache.match('./index.html')) || (await cache.match('./'));
+  if (cached) return cached;
+
+  const response = await fetch(request);
+  if (response.ok) cache.put('./index.html', response.clone());
+  return response;
 }
 
 async function cacheFirst(request) {
