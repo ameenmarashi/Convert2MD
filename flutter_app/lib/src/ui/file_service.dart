@@ -20,15 +20,11 @@ class FileService {
   const FileService();
 
   Future<List<PickedFile>> pickFiles() async {
-    final selection = await FilePicker.platform.pickFiles(
-      allowMultiple: true,
-      withData: true,
-    );
-    if (selection == null) return const [];
+    final selection = await FilePicker.pickFiles();
 
     final files = <PickedFile>[];
-    for (final file in selection.files) {
-      final bytes = file.bytes ?? await _readPath(file.path);
+    for (final file in selection) {
+      final bytes = await _bytesOf(file);
       if (bytes == null) continue;
       files.add((name: file.name, bytes: bytes));
     }
@@ -38,24 +34,28 @@ class FileService {
   /// Markdown only, for the reading view. `FileType.custom` is what puts the
   /// app's own extensions in front of the user on iOS and Android.
   Future<PickedFile?> pickMarkdown() async {
-    final selection = await FilePicker.platform.pickFiles(
-      withData: true,
+    final file = await FilePicker.pickFile(
       type: FileType.custom,
       allowedExtensions: markdownExtensions,
     );
-    if (selection == null || selection.files.isEmpty) return null;
-    final file = selection.files.first;
-    final bytes = file.bytes ?? await _readPath(file.path);
-    if (bytes == null) return null;
-    return (name: file.name, bytes: bytes);
+    if (file == null) return null;
+    final bytes = await _bytesOf(file);
+    return bytes == null ? null : (name: file.name, bytes: bytes);
   }
 
-  Future<Uint8List?> _readPath(String? path) async {
-    if (path == null) return null;
+  /// The picker hands back a path on most platforms and bytes on the web, so
+  /// ask it for the bytes and fall back to reading the path ourselves.
+  Future<Uint8List?> _bytesOf(PlatformFile file) async {
     try {
-      return await File(path).readAsBytes();
+      return await file.readAsBytes();
     } catch (_) {
-      return null;
+      final path = file.path;
+      if (path == null) return null;
+      try {
+        return await File(path).readAsBytes();
+      } catch (_) {
+        return null;
+      }
     }
   }
 
@@ -64,15 +64,17 @@ class FileService {
     final bytes = Uint8List.fromList(utf8.encode(markdown));
 
     if (isDesktop) {
-      final path = await FilePicker.platform.saveFile(
+      final saved = await FilePicker.saveFile(
         fileName: fileName,
+        bytes: bytes,
+        mimeType: 'text/markdown',
         type: FileType.custom,
         allowedExtensions: const ['md'],
-        bytes: bytes,
       );
-      if (path == null) return null;
+      if (saved == null) return null;
 
-      // Windows and Linux hand back a path without writing the bytes.
+      // Windows and Linux hand back a location without writing the bytes.
+      final path = saved.toFilePath();
       final file = File(path);
       if (!await file.exists() || await file.length() == 0) {
         await file.writeAsBytes(bytes, flush: true);
@@ -83,12 +85,17 @@ class FileService {
     final directory = await getTemporaryDirectory();
     final file = File('${directory.path}/$fileName');
     await file.writeAsBytes(bytes, flush: true);
-    await Share.shareXFiles([XFile(file.path, mimeType: 'text/markdown')], subject: fileName);
+    await SharePlus.instance.share(
+      ShareParams(
+        files: [XFile(file.path, mimeType: 'text/markdown')],
+        subject: fileName,
+      ),
+    );
     return file.path;
   }
 
   Future<void> shareText(String markdown, String subject) async {
-    await Share.share(markdown, subject: subject);
+    await SharePlus.instance.share(ShareParams(text: markdown, subject: subject));
   }
 
   static bool get isDesktop =>
