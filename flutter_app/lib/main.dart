@@ -63,8 +63,9 @@ class MdConverterApp extends ConsumerWidget {
       cardTheme: CardThemeData(
         elevation: 0,
         clipBehavior: Clip.antiAlias,
+        // 12px matches the PWA's --radius token, so cards read the same on both.
         shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(14),
+          borderRadius: BorderRadius.circular(12),
           side: BorderSide(color: scheme.outlineVariant),
         ),
       ),
