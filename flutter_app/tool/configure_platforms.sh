@@ -101,15 +101,22 @@ pin_android_compile_sdk() {
 
 // md-converter:compile-sdk — see tool/configure_platforms.sh
 subprojects {
-    afterEvaluate {
-        val androidExtension = extensions.findByName("android") ?: return@afterEvaluate
-        runCatching {
-            val setCompileSdk = androidExtension.javaClass.methods.first {
-                it.name == "compileSdkVersion" &&
-                    it.parameterCount == 1 &&
-                    it.parameterTypes[0] == Int::class.javaPrimitiveType
+    // `withId` rather than `afterEvaluate`: Flutter's plugin loader has already
+    // evaluated some of these modules by the time this runs, and Gradle refuses
+    // an afterEvaluate on a project it has finished with. `withId` fires
+    // immediately for a plugin that is already applied, and on application for
+    // one that is not, so it covers both.
+    listOf("com.android.application", "com.android.library").forEach { pluginId ->
+        plugins.withId(pluginId) {
+            val androidExtension = extensions.findByName("android") ?: return@withId
+            runCatching {
+                val setCompileSdk = androidExtension.javaClass.methods.first {
+                    it.name == "compileSdkVersion" &&
+                        it.parameterCount == 1 &&
+                        it.parameterTypes[0] == Int::class.javaPrimitiveType
+                }
+                setCompileSdk.invoke(androidExtension, 36)
             }
-            setCompileSdk.invoke(androidExtension, 36)
         }
     }
 }
