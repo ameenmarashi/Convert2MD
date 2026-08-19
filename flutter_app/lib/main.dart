@@ -13,9 +13,9 @@ class MdConverterApp extends ConsumerWidget {
   const MdConverterApp({super.key});
 
   /// Palette from ../../brand.json, the same one the PWA's CSS tokens use.
-  static const Color _accentLight = Color(0xFF33B795);
-  static const Color _accentDark = Color(0xFF5FD4B0);
-  static const Color _navy = Color(0xFF12293F);
+  static const Color _accentLight = Color(0xFF1FA383);
+  static const Color _accentDark = Color(0xFF52D2A8);
+  static const Color _navy = Color(0xFF0F2436);
   static const Color _surfaceLight = Color(0xFFE9F4F3);
   static const Color _surfaceDark = Color(0xFF0E1B28);
 
@@ -47,7 +47,7 @@ class MdConverterApp extends ConsumerWidget {
     // of roles the eye actually reads are pinned to the brand values.
     final scheme = ColorScheme.fromSeed(seedColor: accent, brightness: brightness).copyWith(
       primary: accent,
-      onPrimary: dark ? const Color(0xFF0A1520) : const Color(0xFF0C2033),
+      onPrimary: dark ? const Color(0xFF0A1520) : const Color(0xFF0A1C2B),
       surface: dark ? _surfaceDark : _surfaceLight,
       onSurface: dark ? const Color(0xFFE4F0EE) : _navy,
       surfaceContainerLowest: dark ? const Color(0xFF0A1520) : const Color(0xFFFBFDFD),
@@ -64,7 +64,7 @@ class MdConverterApp extends ConsumerWidget {
         elevation: 0,
         clipBehavior: Clip.antiAlias,
         shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(16),
+          borderRadius: BorderRadius.circular(14),
           side: BorderSide(color: scheme.outlineVariant),
         ),
       ),

@@ -2,14 +2,14 @@
   <title>MD Converter</title>
   <defs>
     <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
-      <stop offset="0" stop-color="#6ed7b4"/>
-      <stop offset="1" stop-color="#35b898"/>
+      <stop offset="0" stop-color="#57cf9f"/>
+      <stop offset="1" stop-color="#1f9a78"/>
     </linearGradient>
   </defs>
-  <rect width="512" height="512" rx="114" fill="url(#bg)"/>
+  <rect width="512" height="512" rx="82" fill="url(#bg)"/>
   <!-- Monogram geometry mirrors web/scripts/make-icons.mjs: square terminals,
        the M mitred to a point at the vee, the D an even-weight bowl. -->
-  <g fill="#12293f">
+  <g fill="#0f2436">
     <path d="M67 153.6h42v204.8h-42z"/>
     <path d="M201 153.6h42v204.8h-42z"/>
     <path d="M155 322.4 88 199.4l36.8-20.1 67 123z"/>
