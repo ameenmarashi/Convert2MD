@@ -73,7 +73,48 @@ manifest = manifest[:close].rstrip(' ') + block + '\n        ' + manifest[close:
 open(manifest_path, 'w', encoding='utf-8').write(manifest)
 PY
   say "intent filters merged into AndroidManifest.xml"
+
+  pin_android_compile_sdk
   changed=1
+}
+
+# Every plugin module compiles against whatever compileSdk it was written for,
+# and several of them are now older than what their own dependencies demand —
+# flutter_native_splash against android-31 while androidx.window wants 33,
+# file_picker against 34 while flutter_plugin_android_lifecycle wants 36. The
+# build fails on twenty of these at once, and none of it is under this app's
+# control, so the root project pins them all to one modern level.
+#
+# Reflection rather than typed access: the Android extension's classes are on
+# the plugin modules' classpath, not the root project's.
+pin_android_compile_sdk() {
+  local gradle="android/build.gradle.kts"
+  [ -f "$gradle" ] || return 0
+
+  local marker="// md-converter:compile-sdk"
+  if grep -q "$marker" "$gradle"; then
+    say "compileSdk pin already present"
+    return 0
+  fi
+
+  cat >> "$gradle" <<'GRADLE'
+
+// md-converter:compile-sdk — see tool/configure_platforms.sh
+subprojects {
+    afterEvaluate {
+        val androidExtension = extensions.findByName("android") ?: return@afterEvaluate
+        runCatching {
+            val setCompileSdk = androidExtension.javaClass.methods.first {
+                it.name == "compileSdkVersion" &&
+                    it.parameterCount == 1 &&
+                    it.parameterTypes[0] == Int::class.javaPrimitiveType
+            }
+            setCompileSdk.invoke(androidExtension, 36)
+        }
+    }
+}
+GRADLE
+  say "plugin modules pinned to compileSdk 36 in android/build.gradle.kts"
 }
 
 # ------------------------------------------------------------------ iOS, macOS
