@@ -108,14 +108,31 @@ subprojects {
     // one that is not, so it covers both.
     listOf("com.android.application", "com.android.library").forEach { pluginId ->
         plugins.withId(pluginId) {
-            val androidExtension = extensions.findByName("android") ?: return@withId
-            runCatching {
-                val setCompileSdk = androidExtension.javaClass.methods.first {
-                    it.name == "compileSdkVersion" &&
-                        it.parameterCount == 1 &&
-                        it.parameterTypes[0] == Int::class.javaPrimitiveType
-                }
-                setCompileSdk.invoke(androidExtension, 36)
+            val android = extensions.findByName("android") ?: return@withId
+
+            // Two shapes to try: AGP 8 exposes a `compileSdk` property, while
+            // the older `compileSdkVersion(int)` is what modules written
+            // against AGP 7 respond to. A module that answers to neither is
+            // left alone rather than failing the build.
+            val applied = sequenceOf<() -> Unit>(
+                {
+                    val setter = android.javaClass.methods.first {
+                        it.name == "setCompileSdk" && it.parameterCount == 1
+                    }
+                    setter.invoke(android, 36)
+                },
+                {
+                    val setter = android.javaClass.methods.first {
+                        it.name == "compileSdkVersion" &&
+                            it.parameterCount == 1 &&
+                            it.parameterTypes[0] == Int::class.javaPrimitiveType
+                    }
+                    setter.invoke(android, 36)
+                },
+            ).any { attempt -> attempt.runCatching { invoke() }.isSuccess }
+
+            if (!applied) {
+                logger.lifecycle("md-converter: could not pin compileSdk for ${'$'}{project.name}")
             }
         }
     }
