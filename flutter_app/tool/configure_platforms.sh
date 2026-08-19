@@ -100,40 +100,48 @@ pin_android_compile_sdk() {
   cat >> "$gradle" <<'GRADLE'
 
 // md-converter:compile-sdk — see tool/configure_platforms.sh
+//
+// Several plugin modules compile against an SDK older than their own
+// dependencies now demand — flutter_native_splash against android-31 while
+// androidx.window wants 33, and so on — and the build fails on all of them at
+// once. None of it is under this app's control, so they are pinned here.
 subprojects {
-    // `withId` rather than `afterEvaluate`: Flutter's plugin loader has already
-    // evaluated some of these modules by the time this runs, and Gradle refuses
-    // an afterEvaluate on a project it has finished with. `withId` fires
-    // immediately for a plugin that is already applied, and on application for
-    // one that is not, so it covers both.
     listOf("com.android.application", "com.android.library").forEach { pluginId ->
         plugins.withId(pluginId) {
-            val android = extensions.findByName("android") ?: return@withId
+            val pin = pin@{
+                val android = extensions.findByName("android") ?: return@pin
+                // AGP 8 exposes a `compileSdk` property; the older
+                // `compileSdkVersion(int)` is what modules written against AGP 7
+                // answer to. A module that takes neither is left alone.
+                val applied = sequenceOf<() -> Unit>(
+                    {
+                        val setter = android.javaClass.methods.first {
+                            it.name == "setCompileSdk" && it.parameterCount == 1
+                        }
+                        setter.invoke(android, 36)
+                    },
+                    {
+                        val setter = android.javaClass.methods.first {
+                            it.name == "compileSdkVersion" &&
+                                it.parameterCount == 1 &&
+                                it.parameterTypes[0] == Int::class.javaPrimitiveType
+                        }
+                        setter.invoke(android, 36)
+                    },
+                ).any { attempt -> attempt.runCatching { invoke() }.isSuccess }
 
-            // Two shapes to try: AGP 8 exposes a `compileSdk` property, while
-            // the older `compileSdkVersion(int)` is what modules written
-            // against AGP 7 respond to. A module that answers to neither is
-            // left alone rather than failing the build.
-            val applied = sequenceOf<() -> Unit>(
-                {
-                    val setter = android.javaClass.methods.first {
-                        it.name == "setCompileSdk" && it.parameterCount == 1
-                    }
-                    setter.invoke(android, 36)
-                },
-                {
-                    val setter = android.javaClass.methods.first {
-                        it.name == "compileSdkVersion" &&
-                            it.parameterCount == 1 &&
-                            it.parameterTypes[0] == Int::class.javaPrimitiveType
-                    }
-                    setter.invoke(android, 36)
-                },
-            ).any { attempt -> attempt.runCatching { invoke() }.isSuccess }
-
-            if (!applied) {
-                logger.lifecycle("md-converter: could not pin compileSdk for ${'$'}{project.name}")
+                if (!applied) {
+                    logger.lifecycle("md-converter: could not pin compileSdk for ${'$'}{project.name}")
+                }
             }
+
+            // withId fires when the plugin is applied, which is before the
+            // module's own `android { compileSdk … }` block is read — setting it
+            // there gets overwritten. It has to happen after the module is
+            // evaluated. Gradle refuses afterEvaluate on a project it has
+            // already finished, and Flutter's loader has finished some of them,
+            // so those are set straight away instead.
+            if (state.executed) pin() else afterEvaluate { pin() }
         }
     }
 }
