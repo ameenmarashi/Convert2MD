@@ -1,24 +1,43 @@
 /**
  * Markdown editor, written for someone who has never used Markdown.
  *
- * The teaching idea is Obsidian's: never make the beginner memorise syntax, and
- * always show what the marks do. So there are three things working together —
+ * There are two ways to work in it, and the everyday one is the document
+ * itself: you type into the formatted page, the way you would in a word
+ * processor, and the Markdown marks are only shown if you ask to see them. The
+ * marks are still what gets saved — the file on disk is plain Markdown either
+ * way — but nobody has to look at them to write.
  *
- *   1. a toolbar whose buttons say what they make, not what they insert;
- *   2. a preview beside the text that redraws as you type, so the connection
- *      between `## ` and a heading is learned by watching rather than reading;
- *   3. typing help that does what the marks imply — Enter continues a list,
- *      Tab indents one, an empty item ends it.
+ *   Formatted (default)  the rendered document is the editing surface; the
+ *                        toolbar acts on it and `rich.ts` turns it back into
+ *                        Markdown after every change.
+ *   Markdown             the source in a textarea with the rendered document
+ *                        beside it, redrawing as you type. This is the teaching
+ *                        view: the connection between `## ` and a heading is
+ *                        learned by watching it happen.
  *
- * Every programmatic edit goes through `insertText`, which keeps the textarea's
- * native undo stack intact. Setting `.value` directly would throw it away, and
- * an editor where Ctrl+Z does nothing is not one a beginner can explore in.
+ * Whichever is showing, the textarea holds the document. That keeps one source
+ * of truth: saving, word counts and the unsaved-changes flag all read it, and
+ * the formatted surface writes into it rather than owning a second copy.
+ *
+ * In the Markdown view every programmatic edit goes through `insertText`, which
+ * keeps the textarea's native undo stack intact. Setting `.value` directly would
+ * throw it away, and an editor where Ctrl+Z does nothing is not one a beginner
+ * can explore in.
  */
 
 import { renderMarkdown } from './markdown-preview.js';
+import { applyRichCommand, insertRichImage, RichCommand, serializeEditable } from './rich.js';
+import { embedPhoto } from './photos.js';
 
 const DRAFT_PREFIX = 'md-converter.draft.';
+const VIEW_KEY = 'md-converter.editor-view';
 const PREVIEW_DELAY = 120;
+/**
+ * Longer than the preview's: turning a whole document back into Markdown is
+ * more work than rendering one, and it only has to be current by the time
+ * something asks for the text.
+ */
+const SYNC_DELAY = 250;
 
 /** Everything the toolbar and the keyboard shortcuts can do. */
 export type EditorAction =
@@ -35,33 +54,53 @@ export type EditorAction =
   | 'code'
   | 'link'
   | 'table'
-  | 'rule';
+  | 'rule'
+  | 'photo';
+
+/** Which surface the user is typing into. */
+export type EditorView = 'rich' | 'source';
 
 interface EditorDom {
   input: HTMLTextAreaElement;
   preview: HTMLElement;
+  previewLabel: HTMLElement;
   toolbar: HTMLElement;
   pane: HTMLElement;
   status: HTMLElement;
+  sourceToggle: HTMLButtonElement;
+  photoInput: HTMLInputElement;
 }
 
 let dom: EditorDom | null = null;
 let documentName = '';
 let baseline = '';
 let previewTimer = 0;
+let syncTimer = 0;
+let view: EditorView = 'rich';
+/**
+ * A `---` block at the top of the file. It is metadata rather than prose, so it
+ * is held aside while the formatted surface is being edited and put back when
+ * the Markdown is read — otherwise editing a document would quietly rewrite it.
+ */
+let frontMatter = '';
 let onChanged: (() => void) | null = null;
+let onNotice: ((message: string) => void) | null = null;
 
 /* -------------------------------------------------------------- lifecycle */
 
-export function initEditor(handlers: { changed(): void }): void {
+export function initEditor(handlers: { changed(): void; notice?(message: string): void }): void {
   onChanged = handlers.changed;
+  onNotice = handlers.notice ?? null;
 
   dom = {
     input: required<HTMLTextAreaElement>('editor-input'),
     preview: required('editor-preview'),
+    previewLabel: required('editor-preview-label'),
     toolbar: required('editor-toolbar'),
     pane: required('editor'),
     status: required('editor-status'),
+    sourceToggle: required<HTMLButtonElement>('editor-source'),
+    photoInput: required<HTMLInputElement>('editor-photo'),
   };
 
   dom.toolbar.addEventListener('click', (event) => {
@@ -70,6 +109,8 @@ export function initEditor(handlers: { changed(): void }): void {
     apply(button.dataset.action as EditorAction);
   });
 
+  dom.sourceToggle.addEventListener('click', () => setView(view === 'rich' ? 'source' : 'rich'));
+
   dom.input.addEventListener('input', () => {
     schedulePreview();
     updateStatus();
@@ -77,6 +118,24 @@ export function initEditor(handlers: { changed(): void }): void {
   });
 
   dom.input.addEventListener('keydown', onKeyDown);
+
+  // The formatted surface: the browser does the editing, and every change is
+  // turned back into Markdown a moment later.
+  dom.preview.addEventListener('input', () => scheduleSync());
+  // Ticking a task box is a change too, and it does not raise `input`.
+  dom.preview.addEventListener('change', () => scheduleSync());
+  dom.preview.addEventListener('paste', (event) => onPaste(event));
+  dom.preview.addEventListener('drop', (event) => onDrop(event));
+  dom.preview.addEventListener('keydown', onRichKeyDown);
+
+  dom.photoInput.addEventListener('change', () => {
+    const files = [...(dom!.photoInput.files ?? [])];
+    // Cleared straight away so choosing the same picture twice still fires.
+    dom!.photoInput.value = '';
+    void addPhotos(files);
+  });
+
+  view = loadView();
 }
 
 /** Loads a document, restoring an unsaved draft of it if one is waiting. */
@@ -90,12 +149,15 @@ export function loadIntoEditor(name: string, markdown: string): { restoredDraft:
   const restoredDraft = draft !== null && draft !== markdown;
   dom.input.value = restoredDraft ? (draft as string) : markdown;
 
-  renderPreview();
+  applyView();
   reportDirty();
   return { restoredDraft };
 }
 
 export function editorMarkdown(): string {
+  // The formatted surface writes into the textarea on a timer, so anything
+  // asking for the text has to settle that first or it reads a stale copy.
+  flushSync();
   return dom?.input.value ?? '';
 }
 
@@ -110,8 +172,277 @@ export function markEditorSaved(): void {
   reportDirty();
 }
 
-export function focusEditor(): void {
-  dom?.input.focus();
+/**
+ * `selectTitle` is for a document that has just been created: its heading is a
+ * placeholder, so it is selected rather than merely focused and the first thing
+ * typed replaces it — the way a new file behaves in a word processor.
+ */
+export function focusEditor(options: { selectTitle?: boolean } = {}): void {
+  if (!dom) return;
+
+  if (view === 'source') {
+    dom.input.focus();
+    if (options.selectTitle) {
+      const heading = dom.input.value.match(/^#{1,6}\s+(.*)$/m);
+      if (heading?.[1]) {
+        const start = dom.input.value.indexOf(heading[1]);
+        dom.input.setSelectionRange(start, start + heading[1].length);
+      }
+    }
+    return;
+  }
+
+  dom.preview.focus({ preventScroll: true });
+  if (!options.selectTitle) return;
+
+  const heading = dom.preview.querySelector('h1, h2, h3');
+  const selection = window.getSelection();
+  if (!heading || !heading.textContent?.trim() || !selection) return;
+  const range = document.createRange();
+  range.selectNodeContents(heading);
+  selection.removeAllRanges();
+  selection.addRange(range);
+}
+
+/* ------------------------------------------------------------------- views */
+
+export function editorView(): EditorView {
+  return view;
+}
+
+/**
+ * Switches between typing in the document and typing in the Markdown.
+ *
+ * The switch is remembered, because it is a preference about how someone wants
+ * to write rather than a property of a particular file.
+ */
+export function setView(next: EditorView): void {
+  if (!dom) return;
+  // Leaving the formatted surface means the Markdown has to be current first,
+  // or the source view opens showing the document as it was before the last
+  // few keystrokes.
+  flushSync();
+
+  view = next;
+  try {
+    localStorage.setItem(VIEW_KEY, next);
+  } catch {
+    // Private browsing; the choice lasts for this session.
+  }
+  applyView();
+  focusEditor();
+}
+
+function loadView(): EditorView {
+  try {
+    return localStorage.getItem(VIEW_KEY) === 'source' ? 'source' : 'rich';
+  } catch {
+    return 'rich';
+  }
+}
+
+/** Puts the panes, the labels and the editable surface into the current view. */
+function applyView(): void {
+  if (!dom) return;
+  const rich = view === 'rich';
+
+  dom.pane.classList.toggle('editor--rich', rich);
+  dom.sourceToggle.setAttribute('aria-pressed', String(!rich));
+  dom.sourceToggle.title = rich
+    ? 'Show the Markdown marks behind this document'
+    : 'Hide the marks and edit the document itself';
+  dom.previewLabel.textContent = rich ? 'Your document' : 'How it will look';
+
+  renderPane();
+
+  // `contenteditable` is set after the render so the browser sets up its
+  // editing state on the finished document rather than an empty one.
+  if (rich) {
+    dom.preview.setAttribute('contenteditable', 'true');
+    dom.preview.setAttribute('role', 'textbox');
+    dom.preview.setAttribute('aria-multiline', 'true');
+    dom.preview.setAttribute('aria-label', 'Your document');
+    dom.preview.spellcheck = true;
+  } else {
+    dom.preview.removeAttribute('contenteditable');
+    dom.preview.removeAttribute('role');
+    dom.preview.removeAttribute('aria-multiline');
+    dom.preview.removeAttribute('aria-label');
+  }
+}
+
+/**
+ * Draws the document into the preview pane.
+ *
+ * In the formatted view the front matter is held back: it is machine-readable
+ * metadata, and a `<details>` block in the middle of an editable page is
+ * something a beginner can only break.
+ */
+function renderPane(): void {
+  if (!dom) return;
+  const markdown = dom.input.value;
+
+  if (view === 'rich') {
+    const split = splitFrontMatter(markdown);
+    frontMatter = split.front;
+    dom.preview.replaceChildren(renderMarkdown(split.body));
+    prepareEditable();
+  } else {
+    frontMatter = '';
+    dom.preview.replaceChildren(renderMarkdown(markdown));
+  }
+
+  onChanged?.();
+}
+
+/** Makes a rendered document usable as an editing surface. */
+function prepareEditable(): void {
+  if (!dom) return;
+
+  // The reading view shows task boxes as a fixed picture of the file; here they
+  // are the way to tick something off.
+  for (const box of dom.preview.querySelectorAll<HTMLInputElement>('input[type="checkbox"]')) {
+    box.disabled = false;
+  }
+
+  // An empty document has nothing to put a caret in, and a document that ends
+  // in a heading has nowhere to carry on writing — clicking under the title
+  // would land back inside it. An empty paragraph is the answer to both, and it
+  // serialises to nothing, so it never reaches the file.
+  const last = dom.preview.lastElementChild;
+  if (!last || /^H[1-6]$/.test(last.tagName)) {
+    const paragraph = document.createElement('p');
+    paragraph.append(document.createElement('br'));
+    dom.preview.append(paragraph);
+  }
+}
+
+/** Splits a leading `---` block off, keeping `front + body` equal to the input. */
+export function splitFrontMatter(markdown: string): { front: string; body: string } {
+  if (!markdown.startsWith('---')) return { front: '', body: markdown };
+  const lines = markdown.replace(/\r\n?/g, '\n').split('\n');
+  if (lines[0].trim() !== '---') return { front: '', body: markdown };
+
+  const end = lines.indexOf('---', 1);
+  if (end < 1) return { front: '', body: markdown };
+
+  const front = lines.slice(0, end + 1).join('\n') + '\n';
+  return { front, body: lines.slice(end + 1).join('\n').replace(/^\n+/, '') };
+}
+
+/* ------------------------------------------------- the formatted surface */
+
+function scheduleSync(): void {
+  window.clearTimeout(syncTimer);
+  syncTimer = window.setTimeout(syncFromRich, SYNC_DELAY);
+}
+
+/** Brings the Markdown up to date now, if the formatted view has run ahead. */
+function flushSync(): void {
+  if (view !== 'rich' || !syncTimer) return;
+  window.clearTimeout(syncTimer);
+  syncTimer = 0;
+  syncFromRich();
+}
+
+/**
+ * Turns the edited document back into Markdown.
+ *
+ * The rendered document is deliberately *not* redrawn from the result: the
+ * caret lives in those nodes, and replacing them under someone's hands loses
+ * their place mid-sentence.
+ */
+function syncFromRich(): void {
+  if (!dom || view !== 'rich') return;
+  syncTimer = 0;
+
+  const body = serializeEditable(dom.preview);
+  dom.input.value = frontMatter ? `${frontMatter}\n${body}` : body;
+
+  updateStatus();
+  saveDraft();
+  onChanged?.();
+}
+
+/**
+ * Enter inside a quote or a list is the browser's job here — it already
+ * continues them. What it does not do is leave a quote, so Ctrl/⌘ + Enter drops
+ * out into a fresh paragraph.
+ */
+function onRichKeyDown(event: KeyboardEvent): void {
+  const meta = event.metaKey || event.ctrlKey;
+  if (!meta) return;
+
+  const shortcut: Record<string, EditorAction> = { b: 'bold', i: 'italic', k: 'link' };
+  const action = shortcut[event.key.toLowerCase()];
+  if (action) {
+    event.preventDefault();
+    apply(action);
+    return;
+  }
+
+  if (event.key === 'Enter') {
+    event.preventDefault();
+    document.execCommand('formatBlock', false, '<p>');
+    scheduleSync();
+  }
+}
+
+/* ------------------------------------------------------------------ photos */
+
+/** Opens the picture chooser. On a phone that offers the camera as well. */
+export function choosePhotos(): void {
+  dom?.photoInput.click();
+}
+
+async function addPhotos(files: File[]): Promise<void> {
+  if (!dom || files.length === 0) return;
+
+  let added = 0;
+  for (const file of files) {
+    const photo = await embedPhoto(file);
+    if (!photo) {
+      onNotice?.(`${file.name} could not be read as a picture.`);
+      continue;
+    }
+
+    if (view === 'rich') insertRichImage(dom.preview, photo.src, photo.alt);
+    else insertBlock(`![${photo.alt}](${photo.src})`);
+    added++;
+  }
+
+  if (added === 0) return;
+  if (view === 'rich') syncFromRich();
+  else {
+    schedulePreview();
+    reportDirty();
+    saveDraft();
+  }
+
+  onNotice?.(
+    added === 1
+      ? 'Picture added. It is stored inside the document itself, on this device.'
+      : `${added} pictures added. They are stored inside the document itself, on this device.`
+  );
+}
+
+/** Pasting or dropping a picture puts it in the document, not its file name. */
+function onPaste(event: ClipboardEvent): void {
+  const files = imageFiles(event.clipboardData);
+  if (files.length === 0) return;
+  event.preventDefault();
+  void addPhotos(files);
+}
+
+function onDrop(event: DragEvent): void {
+  const files = imageFiles(event.dataTransfer);
+  if (files.length === 0) return;
+  event.preventDefault();
+  void addPhotos(files);
+}
+
+function imageFiles(data: DataTransfer | null): File[] {
+  return [...(data?.files ?? [])].filter((file) => file.type.startsWith('image/'));
 }
 
 /* ------------------------------------------------------------ dirty state */
@@ -135,12 +466,16 @@ function schedulePreview(): void {
   previewTimer = window.setTimeout(renderPreview, PREVIEW_DELAY);
 }
 
+/**
+ * Only the Markdown view redraws from the text: in the formatted view the
+ * document *is* the text, and redrawing it would take the caret with it.
+ *
+ * Counting words means scanning the whole document, so it rides along with the
+ * debounced redraw rather than running on every keystroke.
+ */
 function renderPreview(): void {
-  if (!dom) return;
-  dom.preview.replaceChildren(renderMarkdown(dom.input.value));
-  // Counting words means scanning the whole document, so it rides along with
-  // the debounced redraw rather than running on every keystroke.
-  onChanged?.();
+  if (view === 'rich') return;
+  renderPane();
 }
 
 /* ------------------------------------------------------------ the drafts */
@@ -217,6 +552,19 @@ const LINE_MARKS: Partial<Record<EditorAction, LineMark>> = {
 
 export function apply(action: EditorAction): void {
   if (!dom) return;
+
+  if (action === 'photo') {
+    choosePhotos();
+    return;
+  }
+
+  // In the formatted view the browser does the editing and the Markdown is
+  // derived afterwards; in the Markdown view the marks are written directly.
+  if (view === 'rich') {
+    applyRichCommand(dom.preview, action as RichCommand);
+    scheduleSync();
+    return;
+  }
 
   const wrap = WRAPS[action];
   if (wrap) {

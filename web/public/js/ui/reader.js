@@ -49,7 +49,7 @@ export function initReader(handlers) {
         readButton: required('mode-read'),
         editButton: required('mode-edit'),
     };
-    initEditor({ changed: () => updateMeta() });
+    initEditor({ changed: () => updateMeta(), notice: (message) => onToast?.(message) });
     sizeIndex = loadSize();
     applySize();
     required('reader-close').addEventListener('click', () => closeReader());
@@ -107,8 +107,8 @@ export function openReader(document_, options = {}) {
     dom.doc.replaceChildren(renderMarkdown(document_.markdown));
     const { restoredDraft } = loadIntoEditor(document_.name, document_.markdown);
     // A document started from scratch has nothing to read yet, so it opens in
-    // the editor with the cursor already in it.
-    setMode(options.edit ? 'edit' : 'read');
+    // the editor with its placeholder title selected, ready to be typed over.
+    setMode(options.edit ? 'edit' : 'read', { fresh: Boolean(options.edit) });
     updateMeta();
     if (restoredDraft) {
         onToast?.('Unsaved edits from last time were restored — switch to Edit to see them.');
@@ -116,7 +116,14 @@ export function openReader(document_, options = {}) {
     dom.root.hidden = false;
     document.body.classList.add('is-reading');
     dom.root.scrollTop = 0;
-    dom.doc.focus({ preventScroll: true });
+    // Focus has to wait for the reader to be on screen: a hidden element cannot
+    // take it, and a selection made before then is collapsed by whatever gets it
+    // instead — which is how the first few letters of a new document ended up
+    // beside the placeholder title rather than replacing it.
+    if (options.edit)
+        focusEditor({ selectTitle: true });
+    else
+        dom.doc.focus({ preventScroll: true });
     if (window.history.state?.reader !== true) {
         window.history.pushState({ reader: true }, '');
     }
@@ -203,7 +210,7 @@ function applyRename() {
 function markdownNow() {
     return mode === 'edit' ? editorMarkdown() : current?.markdown ?? '';
 }
-function setMode(next) {
+function setMode(next, options = {}) {
     if (!dom)
         return;
     mode = next;
@@ -222,7 +229,7 @@ function setMode(next) {
     dom.readButton.setAttribute('aria-pressed', String(!editing));
     dom.editButton.setAttribute('aria-pressed', String(editing));
     if (editing) {
-        focusEditor();
+        focusEditor({ selectTitle: options.fresh });
     }
     else if (current) {
         // Coming back from editing shows what was just written, not what was

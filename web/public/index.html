@@ -478,7 +478,19 @@
       <button type="button" class="toolbar__button" data-action="table" title="Table — rows and columns of values">▦ Table</button>
       <button type="button" class="toolbar__button" data-action="rule" title="Divider — a line between sections (---)">— Divider</button>
     </div>
+    <div class="toolbar__group">
+      <button type="button" class="toolbar__button" data-action="photo" title="Photo — added straight into the document, kept on this device">🖼 Photo</button>
+    </div>
+    <!-- The marks are there when you want them and out of the way when you do not. -->
+    <div class="toolbar__group toolbar__group--end">
+      <button type="button" id="editor-source" class="toolbar__button toolbar__button--toggle" aria-pressed="false"
+        title="Show the Markdown marks behind this document">⌨ Markdown</button>
+    </div>
   </div>
+
+  <!-- Never shown; the Photo button opens it. `capture` is left off on purpose
+       so the phone offers the camera *and* the library rather than forcing one. -->
+  <input type="file" id="editor-photo" accept="image/*" multiple hidden aria-hidden="true" tabindex="-1">
 
   <div class="reader__body">
     <nav id="reader-toc" class="reader__toc" hidden aria-label="Contents"></nav>
@@ -487,13 +499,14 @@
     <div id="editor" class="editor" hidden>
       <div class="editor__panes">
         <div class="editor__pane editor__pane--write">
-          <label class="editor__label" for="editor-input">Your text</label>
+          <label class="editor__label" for="editor-input">The Markdown</label>
           <textarea id="editor-input" class="editor__input" spellcheck="true"
-            aria-describedby="editor-help" placeholder="Start typing. Use the buttons above — the preview shows what each mark does."></textarea>
+            aria-describedby="editor-help" placeholder="Start typing. Use the buttons above — the document beside this shows what each mark does."></textarea>
         </div>
         <div class="editor__pane editor__pane--preview">
-          <span class="editor__label">How it will look</span>
-          <div id="editor-preview" class="editor__preview markdown-body" aria-live="off"></div>
+          <span class="editor__label" id="editor-preview-label">Your document</span>
+          <div id="editor-preview" class="editor__preview markdown-body" aria-live="off"
+            data-placeholder="Start typing. The buttons above format what you write — no marks to learn."></div>
         </div>
       </div>
 
@@ -520,7 +533,9 @@
               <tr><td><code>&gt; words</code></td><td>A quote, set apart</td></tr>
             </tbody>
           </table>
-          <p class="disclosure__note"><strong>Two things the editor does for you:</strong> press Enter in a list and the next item appears by itself — press it again on an empty item to end the list. Press Tab on a list item to nest it underneath the one above.</p>
+          <p class="disclosure__note"><strong>You are editing the document, not the marks.</strong> What you see is what the file looks like, and the buttons above format it the way a word processor would. Press <strong>⌨ Markdown</strong> if you would rather see the marks — the file is the same either way.</p>
+          <p class="disclosure__note"><strong>Photos</strong> go inside the document itself, so there is only ever one file to keep. They are shrunk to a sensible size first, and like everything else here they never leave this device.</p>
+          <p class="disclosure__note"><strong>Two things the Markdown view does for you:</strong> press Enter in a list and the next item appears by itself — press it again on an empty item to end the list. Press Tab on a list item to nest it underneath the one above.</p>
           <p class="disclosure__note">A blank line separates paragraphs. That is genuinely the whole format.</p>
         </div>
       </details>

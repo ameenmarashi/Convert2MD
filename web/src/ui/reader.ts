@@ -96,7 +96,7 @@ export function initReader(handlers: {
     editButton: required<HTMLButtonElement>('mode-edit'),
   };
 
-  initEditor({ changed: () => updateMeta() });
+  initEditor({ changed: () => updateMeta(), notice: (message) => onToast?.(message) });
 
   sizeIndex = loadSize();
   applySize();
@@ -160,8 +160,8 @@ export function openReader(document_: ReaderDocument, options: { edit?: boolean 
   dom.doc.replaceChildren(renderMarkdown(document_.markdown));
   const { restoredDraft } = loadIntoEditor(document_.name, document_.markdown);
   // A document started from scratch has nothing to read yet, so it opens in
-  // the editor with the cursor already in it.
-  setMode(options.edit ? 'edit' : 'read');
+  // the editor with its placeholder title selected, ready to be typed over.
+  setMode(options.edit ? 'edit' : 'read', { fresh: Boolean(options.edit) });
   updateMeta();
 
   if (restoredDraft) {
@@ -171,7 +171,12 @@ export function openReader(document_: ReaderDocument, options: { edit?: boolean 
   dom.root.hidden = false;
   document.body.classList.add('is-reading');
   dom.root.scrollTop = 0;
-  dom.doc.focus({ preventScroll: true });
+  // Focus has to wait for the reader to be on screen: a hidden element cannot
+  // take it, and a selection made before then is collapsed by whatever gets it
+  // instead — which is how the first few letters of a new document ended up
+  // beside the placeholder title rather than replacing it.
+  if (options.edit) focusEditor({ selectTitle: true });
+  else dom.doc.focus({ preventScroll: true });
 
   if (window.history.state?.reader !== true) {
     window.history.pushState({ reader: true }, '');
@@ -268,7 +273,7 @@ function markdownNow(): string {
   return mode === 'edit' ? editorMarkdown() : current?.markdown ?? '';
 }
 
-function setMode(next: Mode): void {
+function setMode(next: Mode, options: { fresh?: boolean } = {}): void {
   if (!dom) return;
   mode = next;
   const editing = next === 'edit';
@@ -288,7 +293,7 @@ function setMode(next: Mode): void {
   dom.editButton.setAttribute('aria-pressed', String(editing));
 
   if (editing) {
-    focusEditor();
+    focusEditor({ selectTitle: options.fresh });
   } else if (current) {
     // Coming back from editing shows what was just written, not what was
     // opened — otherwise Read would look like the edits had been lost.

@@ -174,7 +174,8 @@ function write(id: string, document: StoredDocument): void {
     // still on screen, so nothing is lost until the tab closes.
     throw new Error(
       error instanceof Error && /quota/i.test(error.message)
-        ? 'There is no room left on this device for another document. Delete one, or download it instead.'
+        ? 'There is no room left on this device for this document. Pictures take up most of the space — ' +
+          'download this one to keep it, or delete a document you no longer need.'
         : 'This browser would not let the app store the document.'
     );
   }
