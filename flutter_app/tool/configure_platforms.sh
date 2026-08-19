@@ -87,8 +87,14 @@ PY
 #
 # Reflection rather than typed access: the Android extension's classes are on
 # the plugin modules' classpath, not the root project's.
+#
+# It goes in settings.gradle.kts rather than the root build file because the
+# root build script is not early enough: Flutter's plugin loader has already
+# finished evaluating some modules by the time it runs, and the Android plugin
+# stops listening to compileSdk once a module is evaluated. Settings is read
+# before any project at all, so `beforeProject` reaches every one of them.
 pin_android_compile_sdk() {
-  local gradle="android/build.gradle.kts"
+  local gradle="android/settings.gradle.kts"
   [ -f "$gradle" ] || return 0
 
   local marker="// md-converter:compile-sdk"
@@ -105,10 +111,14 @@ pin_android_compile_sdk() {
 // dependencies now demand — flutter_native_splash against android-31 while
 // androidx.window wants 33, and so on — and the build fails on all of them at
 // once. None of it is under this app's control, so they are pinned here.
-subprojects {
+gradle.beforeProject {
     listOf("com.android.application", "com.android.library").forEach { pluginId ->
         plugins.withId(pluginId) {
-            val pin = pin@{
+            // withId fires as the plugin is applied, which is before the
+            // module's own `android { compileSdk … }` block is read — setting it
+            // there would just be overwritten. afterEvaluate is registered here
+            // so it lands ahead of the Android plugin's own finalisation.
+            afterEvaluate pin@{
                 val android = extensions.findByName("android") ?: return@pin
                 // AGP 8 exposes a `compileSdk` property; the older
                 // `compileSdkVersion(int)` is what modules written against AGP 7
@@ -134,19 +144,11 @@ subprojects {
                     logger.lifecycle("md-converter: could not pin compileSdk for ${'$'}{project.name}")
                 }
             }
-
-            // withId fires when the plugin is applied, which is before the
-            // module's own `android { compileSdk … }` block is read — setting it
-            // there gets overwritten. It has to happen after the module is
-            // evaluated. Gradle refuses afterEvaluate on a project it has
-            // already finished, and Flutter's loader has finished some of them,
-            // so those are set straight away instead.
-            if (state.executed) pin() else afterEvaluate { pin() }
         }
     }
 }
 GRADLE
-  say "plugin modules pinned to compileSdk 36 in android/build.gradle.kts"
+  say "plugin modules pinned to compileSdk 36 in android/settings.gradle.kts"
 }
 
 # ------------------------------------------------------------------ iOS, macOS
@@ -165,19 +167,30 @@ write_apple_document_types() {
 
   /usr/libexec/PlistBuddy -c "Add :CFBundleDocumentTypes array" "$plist" >/dev/null
 
-  _add_document_type "$plist" 0 "Markdown" "net.daringfireball.markdown" "public.plain-text" "public.text"
-  _add_document_type "$plist" 1 "PDF" "com.adobe.pdf"
-  _add_document_type "$plist" 2 "Word document" "org.openxmlformats.wordprocessingml.document"
-  _add_document_type "$plist" 3 "Spreadsheet" "org.openxmlformats.spreadsheetml.sheet"
-  _add_document_type "$plist" 4 "Presentation" "org.openxmlformats.presentationml.presentation"
-  _add_document_type "$plist" 5 "OpenDocument" "org.oasis-open.opendocument.text" \
+  # Markdown stands alone, as Editor/Owner: that pair is what decides whether
+  # Files and Finder put this app at the top of "Open with" for a .md file
+  # rather than at the bottom of a list nobody scrolls. It is honest, too — the
+  # app edits Markdown and writes it out, which is more than the formats below,
+  # where it is one converter among the system's own viewers and must not push
+  # Preview or Pages aside. The extensions are listed as well as the UTI so a
+  # .md file that arrived from a source Launch Services cannot type still
+  # matches.
+  _add_document_type "$plist" 0 "Markdown" Editor Owner "net.daringfireball.markdown"
+  _add_type_extensions "$plist" 0 md markdown mdown mkd mdx
+
+  _add_document_type "$plist" 1 "Plain text" Viewer Alternate "public.plain-text" "public.text"
+  _add_document_type "$plist" 2 "PDF" Viewer Alternate "com.adobe.pdf"
+  _add_document_type "$plist" 3 "Word document" Viewer Alternate "org.openxmlformats.wordprocessingml.document"
+  _add_document_type "$plist" 4 "Spreadsheet" Viewer Alternate "org.openxmlformats.spreadsheetml.sheet"
+  _add_document_type "$plist" 5 "Presentation" Viewer Alternate "org.openxmlformats.presentationml.presentation"
+  _add_document_type "$plist" 6 "OpenDocument" Viewer Alternate "org.oasis-open.opendocument.text" \
       "org.oasis-open.opendocument.spreadsheet" "org.oasis-open.opendocument.presentation"
-  _add_document_type "$plist" 6 "EPUB" "org.idpf.epub-container"
-  _add_document_type "$plist" 7 "Rich text" "public.rtf"
-  _add_document_type "$plist" 8 "Web page" "public.html"
-  _add_document_type "$plist" 9 "Comma-separated values" "public.comma-separated-values-text"
-  _add_document_type "$plist" 10 "Email" "com.apple.mail.email"
-  _add_document_type "$plist" 11 "Image" "public.image"
+  _add_document_type "$plist" 7 "EPUB" Viewer Alternate "org.idpf.epub-container"
+  _add_document_type "$plist" 8 "Rich text" Viewer Alternate "public.rtf"
+  _add_document_type "$plist" 9 "Web page" Viewer Alternate "public.html"
+  _add_document_type "$plist" 10 "Comma-separated values" Viewer Alternate "public.comma-separated-values-text"
+  _add_document_type "$plist" 11 "Email" Viewer Alternate "com.apple.mail.email"
+  _add_document_type "$plist" 12 "Image" Viewer Alternate "public.image"
 
   # Markdown has no system UTI, so the app declares one and claims the
   # extensions — this is what puts it in Finder's and Files' "Open with".
@@ -200,20 +213,41 @@ Add :UTImportedTypeDeclarations:0:UTTypeTagSpecification:public.mime-type:0 stri
 PLIST
 }
 
+# _add_document_type <plist> <index> <name> <role> <rank> <uti>...
+#
+# Role is Editor only where the app really edits the file in place; everywhere
+# else it is Viewer, which is what the converter does. Rank decides the order
+# of the "Open with" list, so it is Owner for Markdown and Alternate for the
+# formats the system already has better apps for.
 _add_document_type() {
-  local plist="$1" index="$2" name="$3"
-  shift 3
+  local plist="$1" index="$2" name="$3" role="$4" rank="$5"
+  shift 5
 
   /usr/libexec/PlistBuddy -c "Add :CFBundleDocumentTypes:$index dict" "$plist" >/dev/null
   /usr/libexec/PlistBuddy -c "Add :CFBundleDocumentTypes:$index:CFBundleTypeName string $name" "$plist" >/dev/null
-  # Viewer, not Editor: the app reads a document and writes a new .md beside it.
-  /usr/libexec/PlistBuddy -c "Add :CFBundleDocumentTypes:$index:CFBundleTypeRole string Viewer" "$plist" >/dev/null
-  /usr/libexec/PlistBuddy -c "Add :CFBundleDocumentTypes:$index:LSHandlerRank string Alternate" "$plist" >/dev/null
+  /usr/libexec/PlistBuddy -c "Add :CFBundleDocumentTypes:$index:CFBundleTypeRole string $role" "$plist" >/dev/null
+  /usr/libexec/PlistBuddy -c "Add :CFBundleDocumentTypes:$index:LSHandlerRank string $rank" "$plist" >/dev/null
   /usr/libexec/PlistBuddy -c "Add :CFBundleDocumentTypes:$index:LSItemContentTypes array" "$plist" >/dev/null
 
   local slot=0
   for uti in "$@"; do
     /usr/libexec/PlistBuddy -c "Add :CFBundleDocumentTypes:$index:LSItemContentTypes:$slot string $uti" "$plist" >/dev/null
+    slot=$((slot + 1))
+  done
+}
+
+# The pre-UTI way of claiming a file, still consulted when a document arrives
+# with no type Launch Services recognises — a .md downloaded by a browser, most
+# often.
+_add_type_extensions() {
+  local plist="$1" index="$2"
+  shift 2
+
+  /usr/libexec/PlistBuddy -c "Add :CFBundleDocumentTypes:$index:CFBundleTypeExtensions array" "$plist" >/dev/null
+  local slot=0
+  for extension in "$@"; do
+    /usr/libexec/PlistBuddy -c \
+      "Add :CFBundleDocumentTypes:$index:CFBundleTypeExtensions:$slot string $extension" "$plist" >/dev/null
     slot=$((slot + 1))
   done
 }
