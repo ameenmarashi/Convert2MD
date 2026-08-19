@@ -43,7 +43,9 @@ class OpenedFiles {
   Future<List<OpenedFile>> initial() async {
     try {
       final payload = await _channel.invokeListMethod<Object?>('getInitialFiles');
-      return _decodeAll(payload);
+      // Awaited inside the try on purpose: returning the future bare would let
+      // anything it throws escape the handlers below.
+      return await _decodeAll(payload);
     } on MissingPluginException {
       return const [];
     } on PlatformException catch (error) {

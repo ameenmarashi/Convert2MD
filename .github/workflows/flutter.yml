@@ -26,6 +26,10 @@ jobs:
 
       - uses: subosito/flutter-action@v2
         with:
+          # Pinned rather than floating on stable: a new stable can add a lint
+          # and turn a green branch red on a day nothing was touched. Bump it
+          # deliberately, with the analyzer run alongside.
+          flutter-version: 3.47.0
           channel: stable
           cache: true
 
