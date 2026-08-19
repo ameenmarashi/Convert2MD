@@ -1548,6 +1548,71 @@ body.is-reading {
   margin-top: 0;
 }
 
+/* ---------------------------------------------------- the formatted view */
+
+/* The document is the editing surface, so it gets the whole pane and the
+   Markdown pane steps out of the way entirely. */
+.editor--rich .editor__pane--write {
+  display: none;
+}
+
+.editor--rich .editor__panes {
+  grid-template-columns: 1fr;
+  grid-template-rows: 1fr;
+}
+
+/* It is being typed into, so it reads as a page rather than a preview. */
+.editor--rich .editor__preview {
+  background: var(--bg-elevated);
+  padding: 18px 20px;
+  cursor: text;
+}
+
+.editor__preview[contenteditable]:focus,
+.editor__preview[contenteditable]:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: -1px;
+  border-color: var(--accent);
+}
+
+/* An empty document still holds one paragraph so there is somewhere to put the
+   caret; this writes the invitation into it. */
+.editor--rich .editor__preview:has(> p:only-child > br:only-child)::before {
+  content: attr(data-placeholder);
+  color: var(--text-muted);
+  pointer-events: none;
+  position: absolute;
+}
+
+.editor--rich .editor__preview {
+  position: relative;
+}
+
+/* Ticking a task is an edit here, not a picture of one. */
+.editor--rich .editor__preview input[type='checkbox'] {
+  cursor: pointer;
+  accent-color: var(--accent);
+}
+
+/* A picture pasted from a phone is enormous; the document decides the width. */
+.editor__preview img {
+  max-width: 100%;
+  height: auto;
+  border-radius: var(--radius-sm);
+}
+
+/* The button that shows the marks sits at the far end of the toolbar, away from
+   the ones that change the document. */
+.toolbar__group--end {
+  margin-left: auto;
+}
+
+.toolbar__button--toggle[aria-pressed='true'] {
+  background: var(--accent-soft);
+  border-color: var(--accent);
+  color: var(--accent-strong);
+}
+
 .editor__status {
   margin: 0;
   font-size: 0.75rem;
@@ -1661,6 +1726,12 @@ body.is-reading {
      there to be glanced at, not typed into. Both scroll on their own. */
   .reader--editing .editor__panes {
     grid-template-rows: 3fr 2fr;
+  }
+
+  /* The formatted view has one pane, so the second row would be dead space at
+     the bottom of a phone screen. */
+  .reader--editing .editor--rich .editor__panes {
+    grid-template-rows: 1fr;
   }
 }
 
