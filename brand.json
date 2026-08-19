@@ -4,17 +4,17 @@
   "monogram": "MD",
   "terminals": "square",
 
-  "gradientStart": "#6ed7b4",
-  "gradientEnd": "#35b898",
-  "onGradient": "#12293f",
+  "gradientStart": "#57cf9f",
+  "gradientEnd": "#1f9a78",
+  "onGradient": "#0f2436",
 
-  "accent": "#33b795",
-  "accentDark": "#5fd4b0",
+  "accent": "#1fa383",
+  "accentDark": "#52d2a8",
 
   "splashBackground": "#e9f4f3",
   "splashBackgroundDark": "#0e1b28",
 
-  "cornerRadiusRatio": 0.223,
-  "strokeRatio": 0.082,
+  "cornerRadiusRatio": 0.16,
+  "strokeRatio": 0.09,
   "capHeightRatio": 0.4
 }
