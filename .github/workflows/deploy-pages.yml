@@ -69,3 +69,18 @@ jobs:
             git commit -m "Publish MD Converter PWA from ${GITHUB_SHA::7}"
             git push origin gh-pages
           fi
+
+      - name: Diagnose what the live URL is actually serving
+        # Temporary: the site has been reported as showing stale CSS despite a
+        # successful deploy. This runs from GitHub's own network (unlike a
+        # phone or a sandboxed dev environment) to get an unambiguous answer
+        # about whether it's edge-cache staleness or something upstream of
+        # this workflow entirely.
+        run: |
+          set -x
+          for i in 1 2 3 4 5 6; do
+            sleep 20
+            echo "=== attempt $i ==="
+            curl -sS -D - "https://ameenmarashi.github.io/Convert2MD/styles.css?diag=${GITHUB_RUN_ID}-$i" -o /tmp/live.css || true
+            grep -A2 '^\.button {' /tmp/live.css || echo "(.button rule not found)"
+          done
