@@ -89,8 +89,13 @@ class _ResultCardState extends ConsumerState<ResultCard> {
                 ),
                 FilledButton.icon(
                   onPressed: () => _save(result),
-                  icon: Icon(FileService.isDesktop ? Icons.save_alt : Icons.ios_share, size: 18),
-                  label: Text(FileService.isDesktop ? l10n.save : l10n.share),
+                  icon: const Icon(Icons.save_alt, size: 18),
+                  label: Text(l10n.save),
+                ),
+                OutlinedButton.icon(
+                  onPressed: () => _files.shareText(result.markdown, result.outputName),
+                  icon: const Icon(Icons.ios_share, size: 18),
+                  label: Text(l10n.share),
                 ),
                 SegmentedButton<bool>(
                   showSelectedIcon: false,
@@ -135,9 +140,7 @@ class _ResultCardState extends ConsumerState<ResultCard> {
     try {
       final path = await _files.save(result.outputName, result.markdown);
       if (path == null || !mounted) return;
-      if (FileService.isDesktop) {
-        messenger.showSnackBar(SnackBar(content: Text(l10n.savedTo(path))));
-      }
+      messenger.showSnackBar(SnackBar(content: Text(l10n.savedTo(path))));
     } catch (_) {
       if (!mounted) return;
       messenger.showSnackBar(SnackBar(content: Text(l10n.saveFailed)));

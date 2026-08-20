@@ -2,8 +2,6 @@ import 'dart:convert';
 import 'dart:io';
 
 import 'package:file_picker/file_picker.dart';
-import 'package:flutter/foundation.dart';
-import 'package:path_provider/path_provider.dart';
 import 'package:share_plus/share_plus.dart';
 
 import '../core/converter_registry.dart';
@@ -13,9 +11,10 @@ typedef PickedFile = ({String name, Uint8List bytes});
 
 /// Platform plumbing for reading input files and getting Markdown back out.
 ///
-/// Saving differs by platform on purpose: desktop gets a real "save as" dialog,
-/// while iOS and Android go through the share sheet, which is how those systems
-/// expect a document to leave an app.
+/// Saving always goes through the OS's native document picker, so on iOS and
+/// iPadOS that's the Files app (and anything it can reach — iCloud Drive,
+/// third-party providers), on Android it's the Storage Access Framework, and
+/// on desktop it's a regular "save as" dialog.
 class FileService {
   const FileService();
 
@@ -63,43 +62,32 @@ class FileService {
   Future<String?> save(String fileName, String markdown) async {
     final bytes = Uint8List.fromList(utf8.encode(markdown));
 
-    if (isDesktop) {
-      final saved = await FilePicker.saveFile(
-        fileName: fileName,
-        bytes: bytes,
-        mimeType: 'text/markdown',
-        type: FileType.custom,
-        allowedExtensions: const ['md'],
-      );
-      if (saved == null) return null;
-
-      // Windows and Linux hand back a location without writing the bytes.
-      final path = saved.toFilePath();
-      final file = File(path);
-      if (!await file.exists() || await file.length() == 0) {
-        await file.writeAsBytes(bytes, flush: true);
-      }
-      return path;
-    }
-
-    final directory = await getTemporaryDirectory();
-    final file = File('${directory.path}/$fileName');
-    await file.writeAsBytes(bytes, flush: true);
-    await SharePlus.instance.share(
-      ShareParams(
-        files: [XFile(file.path, mimeType: 'text/markdown')],
-        subject: fileName,
-      ),
+    final saved = await FilePicker.saveFile(
+      fileName: fileName,
+      bytes: bytes,
+      mimeType: 'text/markdown',
+      type: FileType.custom,
+      allowedExtensions: const ['md'],
     );
-    return file.path;
+    if (saved == null) return null;
+
+    // Desktop hands back a plain file:// location without writing the bytes.
+    // iOS (Files app) and Android (Storage Access Framework) write the file
+    // themselves and hand back a content:// / non-file Uri with no local
+    // path worth showing, so just report the name the user saved it as.
+    if (saved.scheme != 'file') return fileName;
+
+    final path = saved.toFilePath();
+    final file = File(path);
+    if (!await file.exists() || await file.length() == 0) {
+      await file.writeAsBytes(bytes, flush: true);
+    }
+    return path;
   }
 
   Future<void> shareText(String markdown, String subject) async {
     await SharePlus.instance.share(ShareParams(text: markdown, subject: subject));
   }
-
-  static bool get isDesktop =>
-      !kIsWeb && (Platform.isMacOS || Platform.isWindows || Platform.isLinux);
 
   /// Extensions the picker advertises; detection itself is content-based.
   List<String> get advertisedExtensions => supportedExtensions;
