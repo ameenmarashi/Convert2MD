@@ -172,11 +172,16 @@ function saveToLibrary() {
     if (!current?.id)
         return;
     const markdown = markdownNow();
+    // Keeps the app's own copy in step with the edits, so reopening this
+    // document from the library later shows what was just written rather than
+    // whatever was here before. That storage has no visible home outside the
+    // app, so it is never what "Save" should mean on its own — the button
+    // below is what actually puts a file somewhere the user chose.
     onSave?.({ id: current.id, name: current.name, markdown });
     current.markdown = markdown;
     markEditorSaved();
     updateMeta();
-    onToast?.('Saved to your documents on this device.');
+    onDownload?.({ name: current.name, markdown });
 }
 function keepInLibrary() {
     if (!current || current.id)
