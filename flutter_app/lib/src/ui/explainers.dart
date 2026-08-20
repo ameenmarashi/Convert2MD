@@ -258,17 +258,10 @@ class AboutSection extends StatelessWidget {
             filled: true,
           ),
         SectionLabel(text: l10n.aboutFormatsTitle),
-        Wrap(
-          spacing: 8,
-          runSpacing: 8,
-          children: [
-            for (final format in l10n.aboutFormats.split(' · '))
-              Chip(
-                label: Text(format, style: theme.textTheme.labelSmall),
-                visualDensity: VisualDensity.compact,
-                materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
-              ),
-          ],
+        Text(
+          l10n.aboutFormats,
+          style: theme.textTheme.bodySmall
+              ?.copyWith(color: theme.colorScheme.onSurfaceVariant),
         ),
         const SizedBox(height: 20),
         FactTile(title: l10n.aboutPrivateTitle, body: l10n.aboutPrivateBody),

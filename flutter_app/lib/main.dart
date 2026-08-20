@@ -69,11 +69,24 @@ class MdConverterApp extends ConsumerWidget {
           side: BorderSide(color: scheme.outlineVariant),
         ),
       ),
+      // Rounded rectangles rather than Material's default full-pill shape, to
+      // match the PWA's flatter, more minimal --radius-sm buttons.
       filledButtonTheme: FilledButtonThemeData(
-        style: FilledButton.styleFrom(minimumSize: const Size(0, 48)),
+        style: FilledButton.styleFrom(
+          minimumSize: const Size(0, 48),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+        ),
       ),
       outlinedButtonTheme: OutlinedButtonThemeData(
-        style: OutlinedButton.styleFrom(minimumSize: const Size(0, 48)),
+        style: OutlinedButton.styleFrom(
+          minimumSize: const Size(0, 48),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+        ),
+      ),
+      segmentedButtonTheme: SegmentedButtonThemeData(
+        style: SegmentedButton.styleFrom(
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+        ),
       ),
     );
   }
