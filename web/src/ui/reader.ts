@@ -158,7 +158,10 @@ export function openReader(document_: ReaderDocument, options: { edit?: boolean 
   showName();
 
   dom.doc.replaceChildren(renderMarkdown(document_.markdown));
-  const { restoredDraft } = loadIntoEditor(document_.name, document_.markdown);
+  // The library id is stable and never reused; the name is, once a document
+  // with that name is deleted — so the id is what keeps drafts from bleeding
+  // between documents that happen to share a default name like "Untitled.md".
+  const { restoredDraft } = loadIntoEditor(document_.id ?? document_.name, document_.markdown);
   // A document started from scratch has nothing to read yet, so it opens in
   // the editor with its placeholder title selected, ready to be typed over.
   setMode(options.edit ? 'edit' : 'read', { fresh: Boolean(options.edit) });

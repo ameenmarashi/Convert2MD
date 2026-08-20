@@ -93,13 +93,21 @@ export function initEditor(handlers) {
     });
     view = loadView();
 }
-/** Loads a document, restoring an unsaved draft of it if one is waiting. */
-export function loadIntoEditor(name, markdown) {
+/**
+ * Loads a document, restoring an unsaved draft of it if one is waiting.
+ *
+ * `key` identifies the draft slot and should be the document's library id
+ * when it has one — library names are recycled once a document is deleted
+ * (`Untitled.md` becomes free again), and keying drafts by name alone meant a
+ * brand new document could resurrect a previous, deleted document's draft
+ * just because it landed on the same default name.
+ */
+export function loadIntoEditor(key, markdown) {
     if (!dom)
         return { restoredDraft: false };
-    documentName = name;
+    documentName = key;
     baseline = markdown;
-    const draft = readDraft(name);
+    const draft = readDraft(key);
     const restoredDraft = draft !== null && draft !== markdown;
     dom.input.value = restoredDraft ? draft : markdown;
     applyView();
@@ -427,6 +435,10 @@ function readDraft(name) {
     catch {
         return null;
     }
+}
+/** Frees a draft slot outright — used when the document it belonged to is deleted. */
+export function discardDraft(key) {
+    clearDraft(key);
 }
 function clearDraft(name) {
     try {

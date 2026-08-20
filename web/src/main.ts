@@ -14,7 +14,7 @@ import {
 } from './core/library.js';
 import { renderMarkdown } from './ui/markdown-preview.js';
 import { initReader, openReader, type ReaderDocument } from './ui/reader.js';
-import { editorIsDirty } from './ui/editor.js';
+import { discardDraft, editorIsDirty } from './ui/editor.js';
 import { initUpdates } from './ui/updates.js';
 import type { WorkerRequest, WorkerResponse } from './worker.js';
 
@@ -347,6 +347,7 @@ function renderLibrary(): void {
     remove.addEventListener('click', () => {
       if (!window.confirm(`Delete ${document_.name}? This cannot be undone.`)) return;
       deleteDocument(document_.id);
+      discardDraft(document_.id);
       renderLibrary();
       toast(`${document_.name} deleted.`);
     });

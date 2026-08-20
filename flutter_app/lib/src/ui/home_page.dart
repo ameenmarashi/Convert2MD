@@ -185,6 +185,10 @@ class _HomePageState extends ConsumerState<HomePage> {
 
   Future<void> _deleteFromLibrary(DocumentInfo document) async {
     await _library.delete(document.path);
+    // A future document can land on this exact name again — the library
+    // reuses a freed one, e.g. back to plain "Untitled.md" — so without this
+    // a brand new document would open showing this deleted one's draft.
+    await ReaderPage.discardDraft(document.name);
     await _refreshLibrary();
     if (mounted) {
       ScaffoldMessenger.of(context)

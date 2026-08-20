@@ -35,6 +35,16 @@ class ReaderPage extends StatefulWidget {
 
   final bool startEditing;
 
+  static const String _draftPrefix = 'md-converter.draft.';
+
+  /// Frees a draft slot outright — call when the document it belonged to is
+  /// deleted, so a later document that lands on the same default name (the
+  /// library reuses a freed name, e.g. "Untitled.md") does not resurrect it.
+  static Future<void> discardDraft(String name) async {
+    final store = await SharedPreferences.getInstance();
+    await store.remove('$_draftPrefix$name');
+  }
+
   static Future<void> open(
     BuildContext context, {
     required String name,
@@ -65,7 +75,6 @@ class _ReaderPageState extends State<ReaderPage> {
   // Kept across pushes so the reader reopens at the size the reader chose.
   static int _scaleIndex = 1;
 
-  static const String _draftPrefix = 'md-converter.draft.';
   static const Duration _previewDelay = Duration(milliseconds: 160);
   static const DocumentLibrary _library = DocumentLibrary();
 
@@ -114,7 +123,7 @@ class _ReaderPageState extends State<ReaderPage> {
   /// saved, and it never leaves the device.
   Future<void> _restoreDraft() async {
     final store = await SharedPreferences.getInstance();
-    final draft = store.getString('$_draftPrefix$_name');
+    final draft = store.getString('${ReaderPage._draftPrefix}$_name');
     if (draft == null || draft == widget.markdown || !mounted) return;
 
     _controller.text = draft;
@@ -127,12 +136,11 @@ class _ReaderPageState extends State<ReaderPage> {
 
   Future<void> _saveDraft() async {
     final store = await SharedPreferences.getInstance();
-    await store.setString('$_draftPrefix$_name', _markdown);
+    await store.setString('${ReaderPage._draftPrefix}$_name', _markdown);
   }
 
   Future<void> _clearDraft() async {
-    final store = await SharedPreferences.getInstance();
-    await store.remove('$_draftPrefix$_name');
+    await ReaderPage.discardDraft(_name);
   }
 
   void _onTextChanged() {
@@ -508,10 +516,16 @@ class _ReaderPageState extends State<ReaderPage> {
       return;
     }
 
+    // The draft lives under the old name; without moving it, it would sit
+    // there as an orphan until some future, unrelated document happened to
+    // land on that exact name and inherited it.
+    final oldName = _name;
     setState(() {
       _path = renamed.path;
       _name = renamed.name;
     });
+    if (_dirty) await _saveDraft();
+    await ReaderPage.discardDraft(oldName);
     _nameController.text = renamed.name;
     if (renamed.name != DocumentLibrary.normaliseName(wanted)) {
       _tell(l10n.renameCollision(renamed.name));
