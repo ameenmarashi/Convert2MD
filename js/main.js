@@ -5,7 +5,7 @@ import { writeZip } from './core/zip.js';
 import { createDocument, deleteDocument, importDocument, listDocuments, readDocument, renameDocument, saveDocument, } from './core/library.js';
 import { renderMarkdown } from './ui/markdown-preview.js';
 import { initReader, openReader } from './ui/reader.js';
-import { editorIsDirty } from './ui/editor.js';
+import { discardDraft, editorIsDirty } from './ui/editor.js';
 import { initUpdates } from './ui/updates.js';
 const APP_VERSION = '1.0.0';
 const SETTINGS_KEY = 'md-converter.settings';
@@ -309,6 +309,7 @@ function renderLibrary() {
             if (!window.confirm(`Delete ${document_.name}? This cannot be undone.`))
                 return;
             deleteDocument(document_.id);
+            discardDraft(document_.id);
             renderLibrary();
             toast(`${document_.name} deleted.`);
         });

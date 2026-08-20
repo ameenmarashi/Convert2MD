@@ -87,7 +87,7 @@ export function applyRichCommand(root, command) {
         case 'link':
             return insertLink();
         case 'table':
-            return insertHtml(TABLE_HTML);
+            return toggleTable(root);
         case 'rule':
             return insertHtml('<hr><p><br></p>');
         default:
@@ -97,6 +97,23 @@ export function applyRichCommand(root, command) {
 const TABLE_HTML = '<table><thead><tr><th>Column</th><th>Column</th></tr></thead>' +
     '<tbody><tr><td>Cell</td><td>Cell</td></tr>' +
     '<tr><td>Cell</td><td>Cell</td></tr></tbody></table><p><br></p>';
+/**
+ * A browser will not let Backspace delete a `<table>` — the caret just moves
+ * between cells — so there is no way out of one once it is inserted. The
+ * Table button doubles as the way out: pressed again with the caret still
+ * inside the table, it removes the whole thing, the same toggle-off the Code
+ * button already gives.
+ */
+function toggleTable(root) {
+    const table = closestTag(root, 'TABLE');
+    if (!table)
+        return insertHtml(TABLE_HTML);
+    const paragraph = document.createElement('p');
+    paragraph.append(document.createElement('br'));
+    table.replaceWith(paragraph);
+    placeCaretAtStart(paragraph);
+    return true;
+}
 /** Puts an image where the caret is. */
 export function insertRichImage(root, src, alt) {
     if (!focusInside(root))
@@ -213,6 +230,16 @@ function selectContents(node) {
         return;
     const range = document.createRange();
     range.selectNodeContents(node);
+    selection.removeAllRanges();
+    selection.addRange(range);
+}
+function placeCaretAtStart(node) {
+    const selection = window.getSelection();
+    if (!selection)
+        return;
+    const range = document.createRange();
+    range.setStart(node, 0);
+    range.collapse(true);
     selection.removeAllRanges();
     selection.addRange(range);
 }
