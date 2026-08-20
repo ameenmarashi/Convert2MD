@@ -677,7 +677,9 @@ function downloadAllAsZip(): void {
   saveBlob(new Blob([archive.buffer as ArrayBuffer], { type: 'application/zip' }), 'markdown-export.zip');
 }
 
-function saveBlob(blob: Blob, filename: string): void {
+async function saveBlob(blob: Blob, filename: string): Promise<void> {
+  if (await trySaveWithPicker(blob, filename)) return;
+
   const url = URL.createObjectURL(blob);
   const anchor = document.createElement('a');
   anchor.href = url;
@@ -687,6 +689,46 @@ function saveBlob(blob: Blob, filename: string): void {
   anchor.click();
   anchor.remove();
   setTimeout(() => URL.revokeObjectURL(url), 30_000);
+}
+
+/**
+ * Where the File System Access API is available (desktop Chrome/Edge, Chrome
+ * on Android) this opens the browser's native save dialog, so the file lands
+ * wherever the user picks — a local folder, or a cloud-synced one like Drive
+ * or OneDrive. Safari and Firefox don't implement it, so those fall back to
+ * a plain download; the browser still hands the file to whatever the OS
+ * treats as its default save location (e.g. iOS Safari lands it in Files).
+ *
+ * Returns true once the save is settled — including a user cancel, which
+ * should not fall back to an automatic download — and false only when the
+ * picker itself isn't available or failed to open.
+ */
+async function trySaveWithPicker(blob: Blob, filename: string): Promise<boolean> {
+  if (typeof window.showSaveFilePicker !== 'function') return false;
+
+  const dot = filename.lastIndexOf('.');
+  const extension = dot === -1 ? '' : filename.slice(dot);
+  const mimeType = blob.type || 'application/octet-stream';
+
+  try {
+    const handle = await window.showSaveFilePicker({
+      suggestedName: filename,
+      types: extension
+        ? [
+            {
+              description: extension === '.zip' ? 'ZIP archive' : 'Markdown document',
+              accept: { [mimeType]: [extension] },
+            },
+          ]
+        : undefined,
+    });
+    const writable = await handle.createWritable();
+    await writable.write(blob);
+    await writable.close();
+    return true;
+  } catch (error) {
+    return error instanceof DOMException && error.name === 'AbortError';
+  }
 }
 
 let toastTimer = 0;
