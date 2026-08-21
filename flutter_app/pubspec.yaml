@@ -43,7 +43,16 @@ dev_dependencies:
   # Generate the launcher icon and the launch screen for both platforms from
   # one source image, so iOS and Android are identical by construction.
   flutter_launcher_icons: ^0.14.1
-  flutter_native_splash: ^2.4.1
+  # Commented out: this Flutter/Xcode toolchain's Swift Package Manager
+  # resolver chokes on flutter_native_splash's generated package ("public
+  # headers directory ... invalid or not contained in the target"), which
+  # blocks every `flutter run`/`flutter build` for iOS and macOS even though
+  # this package is dev-tooling only, never linked into the shipped app.
+  # Temporarily uncomment, `flutter pub get`, run
+  # `dart run flutter_native_splash:create` (pure Dart, no Xcode build
+  # involved) to regenerate the splash screen after a branding change, then
+  # comment it back out before the next `flutter run`.
+  # flutter_native_splash: ^2.4.1
 
 flutter:
   uses-material-design: true
